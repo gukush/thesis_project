@@ -6,3 +6,5 @@ if uploaded_file is not None:
     doc = fitz.Document(stream=bytes_data)
     for page in doc:
         st.write(len(page.get_text("text")))
+
+st.write("Hello World!")

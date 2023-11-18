@@ -198,7 +198,7 @@ def extract_numerics_with_context(text, num_words_before=1):
 #def get_companies_name(file_path)
 
 #report_path = current_directory + "Hestia_sfcr.pdf"
-current_directory = "./examples/"
+current_directory = "../examples/"
 
 #remove_short_sentences = False
 sentence_minimal_len = 5

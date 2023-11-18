@@ -39,7 +39,7 @@ def plot_results(pil_img, scores, labels, boxes,n_table):
 
 
 result_list = []
-dir_path = "./examples/"
+dir_path = "../examples/"
 mat = fitz.Matrix(300/72 , 300/72)
 #feature_extractor = DetrFeatureExtractor()
 directory = os.fsencode(dir_path)

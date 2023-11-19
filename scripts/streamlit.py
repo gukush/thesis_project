@@ -7,5 +7,6 @@ if uploaded_file is not None:
     for page in doc:
         st.write(len(page.get_text("text")))
 
-st.write("Hello World!")
+st.write("Hello World2!")
 st.write("Tartaaaraaara")
+st.write("Muszę się skupić na inżynierce, studia i tak mam")

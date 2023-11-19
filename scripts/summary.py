@@ -45,7 +45,7 @@ def RemoveStopWords(sentences_df, current_directory):
     # Check if the file exists
     combined_stopword = standard_stopwords
     try:
-        with open(current_directory + "custom_stopwords.txt", 'r') as file:
+        with open("./scripts/custom_stopwords.txt", 'r') as file:
             lines = file.readlines()
             lines = [line.strip() for line in lines]
             #print("custom_stopwords", lines)

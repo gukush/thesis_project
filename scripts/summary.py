@@ -1,9 +1,18 @@
-import pdfplumber
+#import pdfplumber
+import fitz
 import numpy as np
 import pandas as pd
 
 import nltk
-#nltk.download('punkt')
+try: 
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+
+try: 
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
 from nltk.stem.snowball import SnowballStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
@@ -15,12 +24,11 @@ import ast
 
 #function responsible for importing given pages
 def importFile(page_num_down, page_num_up, file_name):
-    with pdfplumber.open(report_path) as pdf:
+    with fitz.open(report_path) as pdf:
         # Extract text from the first page
         text = ""
-        for i in range(page_num_down, page_num_up):
-            first_page = pdf.pages[i]
-            text_ = first_page.extract_text()
+        for page in pdf:
+            text_ = page.get_text("text")
             text += text_
     return text
 
@@ -35,12 +43,13 @@ def RemoveStopWords(sentences_df, current_directory):
     print(sentences)
 
     # Check if the file exists
+    combined_stopword = standard_stopwords
     try:
         with open(current_directory + "custom_stopwords.txt", 'r') as file:
             lines = file.readlines()
             lines = [line.strip() for line in lines]
             #print("custom_stopwords", lines)
-            combined_stopword = standard_stopwords + lines
+            combined_stopword = lines
             #print(combined_stopword)
     except FileNotFoundError:
         print(f"The file with custom stopword does not exist.")
@@ -198,7 +207,7 @@ def extract_numerics_with_context(text, num_words_before=1):
 #def get_companies_name(file_path)
 
 #report_path = current_directory + "Hestia_sfcr.pdf"
-current_directory = "../examples/"
+current_directory = "./examples/"
 
 #remove_short_sentences = False
 sentence_minimal_len = 5

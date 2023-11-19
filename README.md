@@ -18,6 +18,8 @@ After running on address http://0.0.0.0:8501/ ( http://localhost:8501 on Windows
 In order to launch shell to run python manually please input following command (while container is running):
 ```
 docker exec -it thesis_project bash
+
+docker start -ai thesis_project //on Windows
 ```
 ## Warning!
 Whole docker container's size is more than 5.7 GB due to using torch package as well as AI models.

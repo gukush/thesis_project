@@ -8,3 +8,4 @@ if uploaded_file is not None:
         st.write(len(page.get_text("text")))
 
 st.write("Hello Worldhuhho!")
+st.write("Tartaaaraaara")

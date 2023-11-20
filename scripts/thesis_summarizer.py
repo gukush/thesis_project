@@ -34,10 +34,13 @@ def importFile(page_num_down, page_num_up, file_name):
 def importFileFromStream(stream):
     doc = fitz.Document(stream=stream)
     text = ""
+    n = 0 # artificially created limit, to remove when we will want to process full pdf
     for page in doc:
         text_ = page.get_text("text")
         text += text_
-        break
+        n = n + 1
+        if n > 10:
+            break
     return text
 
 def splitTextIntoSentences(text):
@@ -213,3 +216,5 @@ def extract_numerics_with_context(text, num_words_before=1):
 
     return results
 
+def step_by_step(text):
+    pass

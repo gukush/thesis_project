@@ -1,9 +1,21 @@
 import streamlit as st
-import fitz
+import fitz 
+import thesis_summarizer as th
+
 
 # Function for the main content
 def show_main_content():
     st.header("Welcome in pipeline for extracting and summarizing data from business raport!")
+    if st.button('Run pipeline'):
+        st.write('Pipeline is being run')
+        if 'uploaded_file' not in st.session_state:
+            st.write('Please upload report')
+        else:
+            report_data = st.session_state['uploaded_file'].getvalue()
+            report_text = th.importFileFromStream(report_data) 
+            st.write(report_text)
+            
+        
     # Your main page content here
 
 # Function for the summary results
@@ -40,6 +52,8 @@ def show_additional_selection():
     # Processing the uploaded file (placeholder logic)
     if uploaded_file is not None:
         st.write("File processing logic goes here.")
+        st.session_state['uploaded_file'] = uploaded_file
+
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")

@@ -24,7 +24,7 @@ import ast
 
 #function responsible for importing given pages
 def importFile(page_num_down, page_num_up, file_name):
-    with fitz.open(report_path) as pdf:
+    with fitz.open(file_name) as pdf:
         # Extract text from the first page
         text = ""
         for page in pdf:
@@ -204,7 +204,8 @@ def extract_numerics_with_context(text, num_words_before=1):
         results.append((number, context_words))
 
     return results
-#def get_companies_name(file_path)
+
+# def get_companies_name(file_path)
 
 #report_path = current_directory + "Hestia_sfcr.pdf"
 current_directory = "./examples/"

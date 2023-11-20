@@ -37,6 +37,7 @@ def importFileFromStream(stream):
     for page in doc:
         text_ = page.get_text("text")
         text += text_
+        break
     return text
 
 def splitTextIntoSentences(text):

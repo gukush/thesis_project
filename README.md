@@ -23,3 +23,7 @@ docker start -ai thesis_project //on Windows
 ```
 ## Warning!
 Whole docker container's size is more than 5.7 GB due to using torch package as well as AI models.
+
+## TODO
+
+Find out why some sequences of interactions with the page "reset" st.session_state and why some don't.

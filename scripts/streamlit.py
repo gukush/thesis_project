@@ -1,9 +1,14 @@
 import streamlit as st
-import fitz 
+import fitz
+
 import thesis_summarizer as th
+import css_like as front
+import sentiment_analysis as sa
 
 TEXTRANK_SUMMARY = 1
 BART_SUMMARY = 2
+
+front.generate_custom_styles()
 # Function for the main content
 def show_main_content():
     st.write("$\\frac{a}{b}$")
@@ -14,7 +19,8 @@ def show_main_content():
             st.write('Please upload report')
         else:
             report_data = st.session_state['uploaded_file'].getvalue()
-            report_text = th.importFileFromStream(report_data) 
+            report_text = th.importFileFromStream(report_data)
+            st.session_state['report_text'] = report_text
             if 'summary' not in st.session_state:
                 #some default stuff
                 pass
@@ -27,7 +33,7 @@ def show_main_content():
                 report_summary = bart_summarizer.abstractive(report_text)
                 st.write(report_summary[0]['summary_text'])
             #st.write(report_text)
-            
+
     # Your main page content here
 # TODO - move the st.write calls that show summary results to this section (too tired rn)
 # Function for the summary results
@@ -71,11 +77,54 @@ def show_additional_selection():
         st.write("File processing logic goes here.")
         st.session_state['uploaded_file'] = uploaded_file
 
+def show_advanced_analysis():
+    # Advanced Analysis Tab Content
+    st.header("Advanced Analysis")
+    if 'report_text' in st.session_state:
+        text = st.sesion_state['report_text']
+        sentences_df = sa.preprocessing(text, 5)
+        sentences_df = sa.extract_sentences_with_keywords(sa.ESG_keywords, sentences_df)
+    col1, col2 = st.columns(2)
+
+    # Financial Section
+    with col1:
+        st.markdown('<div class="financial-section">', unsafe_allow_html=True)
+        st.subheader('Financial')
+        st.text_input('Total Revenue')
+        st.text_input('Total Assets')
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ESG Section
+        st.markdown('<div class="esg-section">', unsafe_allow_html=True)
+        st.subheader('ESG')
+        st.text_area('Sentiment of sentences about Environment')
+        #TODO wymyślić sprytniejszy warunek
+        if 'report_text' in st.session_state:
+            st.dataframe(sentences_df)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Goals and Objectives Section
+    with col2:
+        st.markdown('<div class="goals-section">', unsafe_allow_html=True)
+        st.subheader('Goals and Objectives')
+        st.text_area('Main Goals, based on the ranks from Text Rank')
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Risks and Threats Section
+        st.markdown('<div class="risks-section">', unsafe_allow_html=True)
+        st.subheader('Risks and Threats')
+        st.text_area('Sentiment of sentences about Risks and Threats')
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Extract Table Button at the bottom
+        st.button("Extract Table (If it works)")
+
+
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.radio("Choose the Page",
-                            ["Main Page", "Summary Results", "Additional Selection"])
+                            ["Main Page", "Summary Results", "Additional Selection","Advanced Analysis" ])
 
 # Page routing based on sidebar selection
 if app_mode == "Main Page":
@@ -84,3 +133,6 @@ elif app_mode == "Summary Results":
     show_summary_results()
 elif app_mode == "Additional Selection":
     show_additional_selection()
+elif app_mode == "Advanced Analysis":
+    show_advanced_analysis()
+

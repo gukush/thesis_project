@@ -36,7 +36,7 @@ def splitTextIntoSentences(text):
     sentences = text.split(". ")
     clean_sentences = [s.lower() for s in sentences]
 
-def RemoveStopWords(sentences_df, current_directory):
+def RemoveStopWords(sentences_df):
     standard_stopwords = stopwords.words('english')
     sentences = sentences_df['Tokenized Sentence']
 
@@ -216,7 +216,7 @@ sentence_to_print = 10  # Change N to the number of top sentences you want to pr
 
 page_num_down = 0
 page_num_up = 50
-report_path = current_directory + "shell-sustainability-report-2022.pdf" #"apple_2022.pdf"
+#report_path = current_directory + "shell-sustainability-report-2022.pdf" #"apple_2022.pdf"
 
 # with pdfplumber.open(report_path) as pdf:
 #     # Extract text from the first page
@@ -227,130 +227,130 @@ report_path = current_directory + "shell-sustainability-report-2022.pdf" #"apple
 #         text += text_
 
 #import text from file
-text = importFile(page_num_down, page_num_up, report_path)
+#text = importFile(page_num_down, page_num_up, report_path)
 #print(text)
 
 #split text into sentences
-sentences = sent_tokenize(text)
-
-#create data frame of sentences
-#we add ID's to identify the order of sentences
-sentences_df = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences})
-
-#preprocessing
-
-sentences_df['Preprocessed Sentence'] = sentences_df['Preprocessed Sentence'].apply(CleanText)
-
-#we add each sentence as a version of word tokens
-sentences_df['Tokenized Sentence'] = sentences_df['Preprocessed Sentence'].apply(word_tokenize)
-
-#removing combination of general and custom stopwords
-sentences_df = RemoveStopWords(sentences_df, current_directory)
-
-#perform stemming in english words
-stemmer = SnowballStemmer("english")
-#sentences_df['Tokenized Sentence'] = sentences_df['Tokenized Sentence'].apply(StringToList)
-sentences_df['Stemmed Words'] = sentences_df['Tokenized Sentence'].apply(StemWords)
-
-# Stemming and removing extra spaces
-# cleaned_sentences_stemmed = []
-# for sentence in cleaned_sentences:
-#     # Stem each word in the sentence
-#     words = sentence.split()
-#     stemmed_sentence = ' '.join(stemmer.stem(word) for word in words)
-#     # Remove double spaces
-#     #stemmed_sentence = re.sub(r'\s+', ' ', stemmed_sentence).strip()
-#     stemmed_sentence = re.sub(r'\s+', ' ', stemmed_sentence).strip()
-#     cleaned_sentences_stemmed.append(stemmed_sentence)
-
-
-#creating list of unique words
-unique_words = GetUniqueTokens(sentences_df['Stemmed Words'])
-
-# if(remove_short_sentences):
-#     sentences_df = sentences_df[sentences_df['Stemmed Words'].apply(lambda x: len(x) >= sentence_minimal_len)]
-
-#creating term frequency matrix
-#tf = np.zeros((len(cleaned_sentences), len(unique_words)), dtype=int)
-# Creating an empty DataFrame with sentences as rows and unique words as columns
-tf = pd.DataFrame(0, index=range(len(sentences_df)), columns=unique_words)
-
-tf = CreateTermFrequencyMatrix(sentences_df,unique_words,tf)
-#assigning values to each word
-# word_index = 0
+# sentences = sent_tokenize(text)
 #
-# for word in unique_words:
-#     sentence_index = 0
-#     for sentence in cleaned_sentences:
-#         if word in sentence:
-#             #print(sentence_index,word_index)
-#             tf[sentence_index,word_index] += 1
-#         else:
-#             print(sentence, word)
-#         sentence_index += 1
-#     word_index += 1
-
-
-
-
-
-
-
-#tf = tf.rename(columns=unique_words)
-
-#checking if we don't have empty vectors
-#non_empty_rows = ~np.all(tf == 0, axis=1)
-
-# Filter the array to keep non-empty rows
-#tf = tf[non_empty_rows]
-#saving tf
-#df = pd.DataFrame(tf)
-
-# Specify the Excel file name and the sheet name
-excel_file_name = "tf_v3.xlsx"
-sheet_name = "Sheet1"
-
-# Save the DataFrame to an Excel file
-tf.to_excel(excel_file_name, sheet_name=sheet_name, index=False)
-
-#creating similarity matrix
-similarity_matrix = np.zeros((len(sentences_df), len(sentences_df)), dtype = float)
-for i in range(len(sentences_df)):
-    for j in range(len(sentences_df)):
-        if i != j:
-            # Extract the term frequency vectors for the two sentences
-            tf_vector_i = tf.iloc[i].values
-            tf_vector_j = tf.iloc[j].values
-
-            # Calculate cosine similarity and assign it to the similarity matrix
-            similarity_matrix[i, j] = cosine_similarity(tf_vector_i, tf_vector_j)
-
-
-
-df = pd.DataFrame(similarity_matrix)
-
-# Specify the Excel file name and the sheet name
-excel_file_name = "cosine_similarity_2.xlsx"
-#sheet_name = "Sheet1"
-
-# Save the DataFrame to an Excel file
-df.to_excel(excel_file_name, sheet_name=sheet_name, index=False)
-
-#V = textrank(similarity_matrix, 400, 0.85)
-nx_graph = nx.from_numpy_array(similarity_matrix)
-scores = nx.pagerank(nx_graph, max_iter = 1000)
-sentences_df["Ranks"] = scores
-sorted_df = sentences_df.sort_values(by='Ranks', ascending=False)
-
-# Select the top 20 sentences
-top_20_sentences = sorted_df.head(20)
-
-# Print the top 20 sentences
-print("Top 20 Sentences with Highest Ranks:")
-for index, row in top_20_sentences.iterrows():
-    print(f"{index + 1}: {row['Original Sentence']} (Rank: {row['Ranks']})")
-
-top_20_sentences.to_excel("Highest ranked sentences_2.xlsx", sheet_name = sheet_name, index = False)
-
+# #create data frame of sentences
+# #we add ID's to identify the order of sentences
+# sentences_df = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences})
+#
+# #preprocessing
+#
+# sentences_df['Preprocessed Sentence'] = sentences_df['Preprocessed Sentence'].apply(CleanText)
+#
+# #we add each sentence as a version of word tokens
+# sentences_df['Tokenized Sentence'] = sentences_df['Preprocessed Sentence'].apply(word_tokenize)
+#
+# #removing combination of general and custom stopwords
+# sentences_df = RemoveStopWords(sentences_df, current_directory)
+#
+# #perform stemming in english words
+# stemmer = SnowballStemmer("english")
+# #sentences_df['Tokenized Sentence'] = sentences_df['Tokenized Sentence'].apply(StringToList)
+# sentences_df['Stemmed Words'] = sentences_df['Tokenized Sentence'].apply(StemWords)
+#
+# # Stemming and removing extra spaces
+# # cleaned_sentences_stemmed = []
+# # for sentence in cleaned_sentences:
+# #     # Stem each word in the sentence
+# #     words = sentence.split()
+# #     stemmed_sentence = ' '.join(stemmer.stem(word) for word in words)
+# #     # Remove double spaces
+# #     #stemmed_sentence = re.sub(r'\s+', ' ', stemmed_sentence).strip()
+# #     stemmed_sentence = re.sub(r'\s+', ' ', stemmed_sentence).strip()
+# #     cleaned_sentences_stemmed.append(stemmed_sentence)
+#
+#
+# #creating list of unique words
+# unique_words = GetUniqueTokens(sentences_df['Stemmed Words'])
+#
+# # if(remove_short_sentences):
+# #     sentences_df = sentences_df[sentences_df['Stemmed Words'].apply(lambda x: len(x) >= sentence_minimal_len)]
+#
+# #creating term frequency matrix
+# #tf = np.zeros((len(cleaned_sentences), len(unique_words)), dtype=int)
+# # Creating an empty DataFrame with sentences as rows and unique words as columns
+# tf = pd.DataFrame(0, index=range(len(sentences_df)), columns=unique_words)
+#
+# tf = CreateTermFrequencyMatrix(sentences_df,unique_words,tf)
+# #assigning values to each word
+# # word_index = 0
+# #
+# # for word in unique_words:
+# #     sentence_index = 0
+# #     for sentence in cleaned_sentences:
+# #         if word in sentence:
+# #             #print(sentence_index,word_index)
+# #             tf[sentence_index,word_index] += 1
+# #         else:
+# #             print(sentence, word)
+# #         sentence_index += 1
+# #     word_index += 1
+#
+#
+#
+#
+#
+#
+#
+# #tf = tf.rename(columns=unique_words)
+#
+# #checking if we don't have empty vectors
+# #non_empty_rows = ~np.all(tf == 0, axis=1)
+#
+# # Filter the array to keep non-empty rows
+# #tf = tf[non_empty_rows]
+# #saving tf
+# #df = pd.DataFrame(tf)
+#
+# # Specify the Excel file name and the sheet name
+# excel_file_name = "tf_v3.xlsx"
+# sheet_name = "Sheet1"
+#
+# # Save the DataFrame to an Excel file
+# tf.to_excel(excel_file_name, sheet_name=sheet_name, index=False)
+#
+# #creating similarity matrix
+# similarity_matrix = np.zeros((len(sentences_df), len(sentences_df)), dtype = float)
+# for i in range(len(sentences_df)):
+#     for j in range(len(sentences_df)):
+#         if i != j:
+#             # Extract the term frequency vectors for the two sentences
+#             tf_vector_i = tf.iloc[i].values
+#             tf_vector_j = tf.iloc[j].values
+#
+#             # Calculate cosine similarity and assign it to the similarity matrix
+#             similarity_matrix[i, j] = cosine_similarity(tf_vector_i, tf_vector_j)
+#
+#
+#
+# df = pd.DataFrame(similarity_matrix)
+#
+# # Specify the Excel file name and the sheet name
+# excel_file_name = "cosine_similarity_2.xlsx"
+# #sheet_name = "Sheet1"
+#
+# # Save the DataFrame to an Excel file
+# df.to_excel(excel_file_name, sheet_name=sheet_name, index=False)
+#
+# #V = textrank(similarity_matrix, 400, 0.85)
+# nx_graph = nx.from_numpy_array(similarity_matrix)
+# scores = nx.pagerank(nx_graph, max_iter = 1000)
+# sentences_df["Ranks"] = scores
+# sorted_df = sentences_df.sort_values(by='Ranks', ascending=False)
+#
+# # Select the top 20 sentences
+# top_20_sentences = sorted_df.head(20)
+#
+# # Print the top 20 sentences
+# print("Top 20 Sentences with Highest Ranks:")
+# for index, row in top_20_sentences.iterrows():
+#     print(f"{index + 1}: {row['Original Sentence']} (Rank: {row['Ranks']})")
+#
+# top_20_sentences.to_excel("Highest ranked sentences_2.xlsx", sheet_name = sheet_name, index = False)
+#
 
 

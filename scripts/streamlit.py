@@ -26,7 +26,9 @@ def show_main_content():
                 pass
             elif st.session_state['summary'] == TEXTRANK_SUMMARY:
                 # TODO - add logic for outputting summary into simple text
-                st.write("Here would be textrank summary")
+                #st.write("Here would be textrank summary")
+                top20 = th.step_by_step(report_text)
+                st.write(top20)
             else:
                 # TODO - make the import process make more sense (it loads for a long time initially)
                 import bart_summarizer
@@ -48,7 +50,7 @@ def show_additional_selection():
     # File uploader
     uploaded_file = st.file_uploader("Test upload")
 
-    # Input fields and variables
+    # Input fields and variable/s
     col1, col2, col3 = st.columns(3)
 
     with col1:

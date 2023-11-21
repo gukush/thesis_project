@@ -97,14 +97,14 @@ def CleanText(sentence):
     cleaned_text = re.sub(r'[^a-zA-Z]', ' ', sentence).lower()
     return cleaned_text
 
-def StemWords(tokens):
+def StemWords(tokens, stemmer):
     # Apply stemming to each token in the list
     stemmed_tokens = [stemmer.stem(token) if token.isalpha() else token for token in tokens]
     return stemmed_tokens
 
 def GetUniqueTokens(column):
     # flatening the column
-    flattened_list = [word for row in sentences_df['Stemmed Words'] for word in row]
+    flattened_list = [word for row in column for word in row]
 
     # Get unique values in for of lists
     unique_words = set(flattened_list)
@@ -217,4 +217,48 @@ def extract_numerics_with_context(text, num_words_before=1):
     return results
 
 def step_by_step(text):
-    pass
+    sentences = sent_tokenize(text)
+    sentences_df = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences})
+    sentences_df['Preprocessed Sentence'] = sentences_df['Preprocessed Sentence'].apply(CleanText)
+    #we add each sentence as a version of word tokens
+    sentences_df['Tokenized Sentence'] = sentences_df['Preprocessed Sentence'].apply(word_tokenize)
+    #removing combination of general and custom stopwords
+    sentences_df = RemoveStopWords(sentences_df, '.')
+    #perform stemming in english words
+    stemmer = SnowballStemmer("english")
+    #sentences_df['Tokenized Sentence'] = sentences_df['Tokenized Sentence'].apply(StringToList)
+    sentences_df['Stemmed Words'] = sentences_df['Tokenized Sentence'].apply(lambda x : StemWords(x,stemmer))
+    #creating list of unique words
+    unique_words = GetUniqueTokens(sentences_df['Stemmed Words'])
+    tf = pd.DataFrame(0, index=range(len(sentences_df)), columns=unique_words)
+    tf = CreateTermFrequencyMatrix(sentences_df,unique_words,tf)
+#    tf = tf.rename(columns=unique_words)
+#
+# #checking if we don't have empty vectors
+#    non_empty_rows = ~np.all(tf == 0, axis=1)
+#
+# # Filter the array to keep non-empty rows
+#    tf = tf[non_empty_rows]
+# #saving tf
+# #df = pd.DataFrame(tf)
+    #creating similarity matrix
+    similarity_matrix = np.zeros((len(sentences_df), len(sentences_df)), dtype = float)
+    for i in range(len(sentences_df)):
+      for j in range(len(sentences_df)):
+          if i != j:
+              # Extract the term frequency vectors for the two sentences
+              tf_vector_i = tf.iloc[i].values
+              tf_vector_j = tf.iloc[j].values
+             # Calculate cosine similarity and assign it to the similarity matrix
+              similarity_matrix[i, j] = cosine_similarity(tf_vector_i, tf_vector_j)
+# df = pd.DataFrame(similarity_matrix)
+    #V = textrank(similarity_matrix, 400, 0.85)
+    nx_graph = nx.from_numpy_array(similarity_matrix)
+    scores = nx.pagerank(nx_graph, max_iter = 1000)
+    sentences_df["Ranks"] = scores
+    sorted_df = sentences_df.sort_values(by='Ranks', ascending=False)
+  # Select the top 20 sentences
+    top_20_sentences = sorted_df.head(20)
+    return top_20_sentences
+
+

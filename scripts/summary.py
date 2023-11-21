@@ -93,7 +93,7 @@ def StemWords(tokens):
 
 def GetUniqueTokens(column):
     # flatening the column
-    flattened_list = [word for row in sentences_df['Stemmed Words'] for word in row]
+    flattened_list = [word for row in column for word in row]
 
     # Get unique values in for of lists
     unique_words = set(flattened_list)

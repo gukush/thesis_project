@@ -83,9 +83,9 @@ def show_advanced_analysis():
     # Advanced Analysis Tab Content
     st.header("Advanced Analysis")
     if 'report_text' in st.session_state:
-        text = st.sesion_state['report_text']
+        text = st.session_state['report_text']
         sentences_df = sa.preprocessing(text, 5)
-        sentences_df = sa.extract_sentences_with_keywords(sa.ESG_keywords, sentences_df)
+        #sentences_df = sa.extract_sentences_with_keywords(sa.ESG_keywords, sentences_df)
     col1, col2 = st.columns(2)
 
     # Financial Section
@@ -126,7 +126,7 @@ def show_advanced_analysis():
 # Sidebar for navigation
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.radio("Choose the Page",
-                            ["Main Page", "Summary Results", "Additional Selection","Advanced Analysis" ])
+                            ["Main Page", "Summary Results", "Additional Selection", "Basic analysis", "Advanced Analysis" ])
 
 # Page routing based on sidebar selection
 if app_mode == "Main Page":
@@ -134,6 +134,8 @@ if app_mode == "Main Page":
 elif app_mode == "Summary Results":
     show_summary_results()
 elif app_mode == "Additional Selection":
+    show_additional_selection()
+elif app_mode == "Basic analysis":
     show_additional_selection()
 elif app_mode == "Advanced Analysis":
     show_advanced_analysis()

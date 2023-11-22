@@ -32,7 +32,7 @@ def importFile(page_num_down, page_num_up, file_name):
             text += text_
     return text
 
-def importFileFromStream(stream):
+def importFileFromStream(stream, page_num_down = None, page_num_up = None):
     doc = fitz.Document(stream=stream)
     text = ""
     n = 0 # artificially created limit, to remove when we will want to process full pdf

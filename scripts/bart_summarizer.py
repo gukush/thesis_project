@@ -1,5 +1,6 @@
 from transformers import BartTokenizer, BartForConditionalGeneration
-import torch 
+import torch
+import re
 
 # Possible future direction - training the BART model to some text that we need 
 
@@ -15,6 +16,7 @@ def abstractive(text,max_size):
     #inputs = tokenizer(text, max_length=2048, return_tensors='pt', truncation=True)
     big_summary = text
     while len(big_summary) > max_size:
+        big_summary = re.sub(r'[^A-Za-z\s0-9]',' ',big_summary) 
         inputs = tokenizer.encode(big_summary, add_special_tokens=True) 
         #summary_ids = model.generate(inputs['input_ids'], num_beams=4, max_length=5, early_stopping=True)
         input_list = [inputs[i:i + chunk_size] for i in range(0, len(inputs), chunk_size)]
@@ -28,6 +30,7 @@ def abstractive(text,max_size):
         # Combine summaries
         big_summary = ' '.join(summaries) 
         print(f"length of big summary is {len(big_summary)}, call number: {num_calls}")
+        print(big_summary)
     # Further summarization to shrink output
     # limit
     #while big_summary > limit:

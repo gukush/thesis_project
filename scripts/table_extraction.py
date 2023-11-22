@@ -117,7 +117,7 @@ def TableStepByStep(page,mat,model_detection, model_structure, plotting = False)
     return tables_matrx_form
 
 def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=model_detection, model_structure=model_structure, plotting = False, num_start = None, num_end = None):
-    doc = fitz.document(stream=stream)
+    doc = fitz.Document(stream=stream)
     if num_start is None:
         num_start = 0
     if num_end is None:
@@ -126,6 +126,7 @@ def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=mod
         page = doc[i]
         page_text = page.get_text("text")
         extract = any(keyword in page_text for keyword in keywords)
+        print(f"extract {extract}")
         tables = []
         if extract:
             tables = TableStepByStep(page,pix_mat,model_detection,model_structure,plotting)
@@ -134,7 +135,7 @@ def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=mod
             csv_string = io.StringIo()
             SimpleDumpCSV(csv_string,table)
             csv_strings.append(csv_string)
-        return csv_strings
+    return csv_strings
             
     
 

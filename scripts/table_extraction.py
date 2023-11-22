@@ -102,28 +102,33 @@ def TableStepByStep(page,mat,model_detection, model_structure, plotting = False)
     tables_matrix_form = []
     for score, label, box in zip(results["scores"],results["labels"],results["boxes"]):
         if model_detection.config.id2label[label.item()] == "table":
-            new_results = ExtractTable(img,box,ENLARGE_X,ENLARGE_Y,model_structure)#image_processor.post_process_object_detection(new_outputs, threshold=0.9,target_sizes=new_target_sizes)[0]
-    	    if plotting:
-    	        plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
-    	    rows = []
-    	    cols = []
-    	    for new_score, new_label, new_box in zip(new_results["scores"],new_results["labels"],new_results['boxes']):
-    		    if model_structure.config.id2label[new_label.item()] == "table row":
-    			    rows.append(new_box)
-    		    if model_structure.config.id2label[new_label.item()] == "table column":
-    			    cols.append(new_box)
-    	    our_matrix = GetMatrixFromStructure(page,mat,rows,cols,box[0]-ENLARGE_X,box[1]-ENLARGE_Y)
-    	    tables_matrix_form.append(our_matrix)
+            new_results = ExtractTable(img,box,ENLARGE_X,ENLARGE_Y,model_structure) #image_processor.post_process_object_detection(new_outputs, threshold=0.9,target_sizes=new_target_sizes)[0]
+            if plotting:
+                plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
+            rows = []
+            cols = []
+            for new_score, new_label, new_box in zip(new_results["scores"],new_results["labels"],new_results['boxes']):
+                if model_structure.config.id2label[new_label.item()] == "table row":
+                    rows.append(new_box)
+                if model_structure.config.id2label[new_label.item()] == "table column":
+                    cols.append(new_box)
+                our_matrix = GetMatrixFromStructure(page,mat,rows,cols,box[0]-ENLARGE_X,box[1]-ENLARGE_Y)
+                tables_matrix_form.append(our_matrix)
     return tables_matrx_form
 
-def TableExtractionFromStream(stream, mat, model_detection, model_structure, keywords,plotting = False):
-    doc = fitz.Document(stream=stream)
-    for page in doc:
-        page_text = page.tet_text("text")
+def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=model_detection, model_structure=model_structure, plotting = False, num_start = None, num_end = None):
+    doc = fitz.document(stream=stream)
+    if num_start is None:
+        num_start = 0
+    if num_end is None:
+        num_end = doc.page_count 
+    for i in range(num_start,num_end):
+        page = doc[i]
+        page_text = page.get_text("text")
         extract = any(keyword in page_text for keyword in keywords)
         tables = []
         if extract:
-            tables = TableStepByStep(page,mat,model_detection,model_structure,plotting)
+            tables = TableStepByStep(page,pix_mat,model_detection,model_structure,plotting)
         csv_strings = []
         for table in tables:
             csv_string = io.StringIo()
@@ -143,10 +148,10 @@ if __name__ == "__main__":
         for page in doc:
             page_text = page.get_text("text")
             if user_input.lower() in page_text.lower():
-    		    our_matrices = TableStepByStep(page,mat, model_detection, modle_structure, True)
-    		    for matrix in our_matrices:
-    		        n_tables = n_tables + 1
-    		        with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:
+                our_matrices = TableStepByStep(page,mat, model_detection, modle_structure, True)
+                for matrix in our_matrices:
+                    n_tables = n_tables + 1
+                    with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:
                         SimpleDumpCSV(my_csv,our_matrix)
         time_elapsed = time.time() - start_time
         result_list.append((filename,n_tables,time_elapsed))

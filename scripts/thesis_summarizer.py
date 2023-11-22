@@ -22,12 +22,17 @@ import networkx as nx
 import ast
 
 #function responsible for importing given pages
-def importFile(page_num_down, page_num_up, file_name):
+def importFile(file_name, page_num_down = None, page_num_up = None):
     #TODO: add support for extracting range of pages (currenlty extracts whole doc)
     with fitz.open(report_path) as pdf:
         # Extract text from the first page
+        if page_num_down is None:
+            page_num_down = 0
+        if page_num_up is None:
+            page_num_up = doc.page_count
         text = ""
-        for page in pdf:
+        for i in range(page_num_down,page_num_up):
+            page = doc[i]
             text_ = page.get_text("text")
             text += text_
     return text
@@ -36,12 +41,19 @@ def importFileFromStream(stream, page_num_down = None, page_num_up = None):
     doc = fitz.Document(stream=stream)
     text = ""
     n = 0 # artificially created limit, to remove when we will want to process full pdf
-    for page in doc:
+    if page_num_down is None:
+        page_num_down = 0
+    if page_num_up is None:
+        page_num_up = doc.page_count
+    text = ""
+    for i in range(page_num_down,page_num_up):
+        page = doc[i]
         text_ = page.get_text("text")
         text += text_
         n = n + 1
-        if n > 10:
-            break
+        #if n > 10:
+        #    break
+    print(len(text))
     return text
 
 def splitTextIntoSentences(text):

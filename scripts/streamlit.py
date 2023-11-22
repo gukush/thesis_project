@@ -1,14 +1,22 @@
 import streamlit as st
 import fitz
-
+import table_extraction as tab
 import thesis_summarizer as th
 import css_like as front
 import sentiment_analysis as sa
+import pandas as pd
 
 TEXTRANK_SUMMARY = 1
 BART_SUMMARY = 2
 
 front.generate_custom_styles()
+
+# set initial session state (TODO: might put into separate function)
+if 'num_start' not in st.session_state:
+    st.session_state['num_start'] = None
+if 'num_end' not in st.session_state:
+    st.session_state['num_end'] = None
+
 # Function for the main content
 def show_main_content():
     st.header("Welcome in pipeline for extracting and summarizing data from business reports!")
@@ -71,8 +79,8 @@ def show_additional_selection():
 
     with col3:
         whole_report = st.checkbox("Whole Report")
-        start_page = st.number_input("Start from page (0-indexed)", min_value=0, value=0, step=1, key='start_page')
-        end_page = st.number_input("End at page (0-indexed)", min_value=0, value=0, step=1, key='end_page')
+        st.session_state['num_start'] = st.number_input("Start from page (0-indexed)", min_value=0, value=0, step=1, key='start_page')
+        st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=0, step=1, key='end_page')
 
     # Processing the uploaded file (placeholder logic)
     if uploaded_file is not None:
@@ -119,8 +127,15 @@ def show_advanced_analysis():
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Extract Table Button at the bottom
-        st.button("Extract Table (If it works)")
-
+        if st.button("Extract Table (If it works)"):
+            if 'uploaded_file' not in st.session_state:
+                st.write('Please upload report')
+            else:
+                report_data = st.session_state['uploaded_file'].getvalue()
+                csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,num_start=st.session_state['num_start'],num_end=st.session_state['num_end']) 
+                for csv_string in csv_strings:
+                    st.write(csv_string)
+                st.write("done")
 
 
 # Sidebar for navigation

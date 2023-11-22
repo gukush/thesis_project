@@ -23,6 +23,7 @@ import ast
 
 #function responsible for importing given pages
 def importFile(page_num_down, page_num_up, file_name):
+    #TODO: add support for extracting range of pages (currenlty extracts whole doc)
     with fitz.open(report_path) as pdf:
         # Extract text from the first page
         text = ""

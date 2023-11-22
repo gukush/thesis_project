@@ -11,7 +11,6 @@ BART_SUMMARY = 2
 front.generate_custom_styles()
 # Function for the main content
 def show_main_content():
-    st.write("$\\frac{a}{b}$")
     st.header("Welcome in pipeline for extracting and summarizing data from business reports!")
     if st.button('Run pipeline'):
         st.write('Pipeline is being run')
@@ -32,8 +31,9 @@ def show_main_content():
             else:
                 # TODO - make the import process make more sense (it loads for a long time initially)
                 import bart_summarizer
-                report_summary = bart_summarizer.abstractive(report_text)
-                st.write(report_summary[0]['summary_text'])
+                report_summary = bart_summarizer.abstractive(report_text,1000)
+                st.write(report_summary)
+                #st.write(report_summary[0]['summary_text'])
             #st.write(report_text)
 
     # Your main page content here

@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import string
 import argparse
 import csv
+import io
 #import numpy as np
 
 # colors for visualization
@@ -18,6 +19,8 @@ COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
 
 ENLARGE_X = 100
 ENLARGE_Y = 100
+
+keywords = ['consolidated statement']
 
 def plot_results(pil_img, scores, labels, boxes,n_table):
     plt.clf()
@@ -46,7 +49,7 @@ directory = os.fsencode(dir_path)
 model_structure = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-structure-recognition")
 model_detection = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-detection")
 image_processor = AutoImageProcessor.from_pretrained("microsoft/table-transformer-structure-recognition")
-user_input = input("Type table to search for: ")
+#user_input = input("Type table to search for: ")
 
 
 def GetMatrixFromStructure(page,mat,rows,cols,origin_x, origin_y):
@@ -64,60 +67,90 @@ def GetMatrixFromStructure(page,mat,rows,cols,origin_x, origin_y):
     return matrix
 
 
+def SearchForTable(img, image_processor, model):
+    inputs = image_processor(images=img,return_tensors="pt")
+    with torch.no_grad():
+        #should be model for detection
+        outputs = model(**inputs)
+    target_sizes = torch.tensor([img.size[::-1]])
+    results = image_processor.post_process_object_detection(outputs, threshold = 0.9, target_sizes=target_sizes)[0]
+    return results
+# dx and dy in this function are variables responsible for how much area outside of the box should also be taken from the image
+def ExtractTable(img, box, dx, dy, model):
+    new_area = (box[0] - dx, box[1]-dy, box[2]+dx, box[3]+dy)
+     # we need to remember origin coordinates of new area to later select right text from page 
+    new_img = img.crop(new_area)
+    inputs = image_processor(new_img, return_tensors="pt")
+    with torch.no_grad():
+    	#should be model for structure analysis
+    	outputs = model(**inputs)
+    target_sizes = torch.tensor([new_img.size[::-1]])
+    results = image_processor.post_process_object_detection(outputs, threshold=0.9,target_sizes=target_sizes)[0]
+    #plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
+    return results
 
+def SimpleDumpCSV(file_like, matrix):
+    csvWriter = csv.writer(file_like,delimiter=',')
+    csvWriter.writerows(matrix)
 
-for file in os.listdir(directory):
-    filename = os.fsdecode(file)
-    full_path = dir_path+filename
-    start_time = time.time()
-    doc = fitz.open(full_path)
-    n_tables = 0
+# gets fitz page object and searches for tables in it, dumping them to file-like object if they get found
+# returns list of tables which are represented like matrices (lists of lists)
+def TableStepByStep(page,mat,model_detection, model_structure, plotting = False):
+    pix = page.get_pixmap(matrix=mat)
+    img = Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
+    results = SearchForTable(img, image_processor, model_detection)
+    tables_matrix_form = []
+    for score, label, box in zip(results["scores"],results["labels"],results["boxes"]):
+        if model_detection.config.id2label[label.item()] == "table":
+            new_results = ExtractTable(img,box,ENLARGE_X,ENLARGE_Y,model_structure)#image_processor.post_process_object_detection(new_outputs, threshold=0.9,target_sizes=new_target_sizes)[0]
+    	    if plotting:
+    	        plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
+    	    rows = []
+    	    cols = []
+    	    for new_score, new_label, new_box in zip(new_results["scores"],new_results["labels"],new_results['boxes']):
+    		    if model_structure.config.id2label[new_label.item()] == "table row":
+    			    rows.append(new_box)
+    		    if model_structure.config.id2label[new_label.item()] == "table column":
+    			    cols.append(new_box)
+    	    our_matrix = GetMatrixFromStructure(page,mat,rows,cols,box[0]-ENLARGE_X,box[1]-ENLARGE_Y)
+    	    tables_matrix_form.append(our_matrix)
+    return tables_matrx_form
+
+def TableExtractionFromStream(stream, mat, model_detection, model_structure, keywords,plotting = False):
+    doc = fitz.Document(stream=stream)
     for page in doc:
-        page_text = page.get_text("text")
-        if user_input.lower() in page_text.lower():
-    	    pix = page.get_pixmap(matrix=mat)
-    	    img = Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
-    	    #encoding = feature_extractor(img,return_tensors="pt")
-    	    inputs = image_processor(images=img, return_tensors="pt")
-    	    outputs = model_detection(**inputs)
-    	    #print(encoding.keys())
-    	    #with torch.no_grad():
-    	    #	outputs = model(**encoding)
-    	    target_sizes = torch.tensor([img.size[::-1]])
-    	    results = image_processor.post_process_object_detection(outputs, threshold=0.9, target_sizes=target_sizes)[0]
-    	    for score, label in zip(results["scores"],results["labels"]):
-    		    if model_detection.config.id2label[label.item()] == "table":
+        page_text = page.tet_text("text")
+        extract = any(keyword in page_text for keyword in keywords)
+        tables = []
+        if extract:
+            tables = TableStepByStep(page,mat,model_detection,model_structure,plotting)
+        csv_strings = []
+        for table in tables:
+            csv_string = io.StringIo()
+            SimpleDumpCSV(csv_string,table)
+            csv_strings.append(csv_string)
+        return csv_strings
+            
+    
+
+if __name__ == "__main__":
+    for file in os.listdir(directory):
+        filename = os.fsdecode(file)
+        full_path = dir_path+filename
+        start_time = time.time()
+        doc = fitz.open(full_path)
+        n_tables = 0
+        for page in doc:
+            page_text = page.get_text("text")
+            if user_input.lower() in page_text.lower():
+    		    our_matrices = TableStepByStep(page,mat, model_detection, modle_structure, True)
+    		    for matrix in our_matrices:
     		        n_tables = n_tables + 1
-    		        print(f"table found with confidence: {round(score.item(),3)}")
-    		        for box in results['boxes'].tolist():
-    			        new_area = (box[0]-ENLARGE_X,box[1]-ENLARGE_Y,box[2]+ENLARGE_X,box[3]+ENLARGE_Y)
-    			        # we need to remember origin coordinates of new area to later select right text from page
-
-    			        new_img = img.crop(new_area)
-    			        #new_inputs = image_processor(images=new_img,return_tensors="pt")
-    			        new_inputs = image_processor(new_img, return_tensors="pt")
-    			        with torch.no_grad():
-    			            new_outputs = model_structure(**new_inputs)
-    			        new_target_sizes = torch.tensor([new_img.size[::-1]])
-    			        new_results = image_processor.post_process_object_detection(new_outputs, threshold=0.9,target_sizes=new_target_sizes)[0]
-    			        plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
-    			        rows = []
-    			        cols = []
-    			        for new_score, new_label, new_box in zip(new_results["scores"],new_results["labels"],new_results['boxes']):
-    			            if model_structure.config.id2label[new_label.item()] == "table row":
-    			                rows.append(new_box)
-    			            if model_structure.config.id2label[new_label.item()] == "table column":
-    			                cols.append(new_box)
-    			        #print(f"cols: {len(cols)} rows: {len(rows)}")
-    			        our_matrix = GetMatrixFromStructure(page,mat,rows,cols,box[0]-ENLARGE_X,box[1]-ENLARGE_Y)
-    			        with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:
-    			            csvWriter = csv.writer(my_csv,delimiter=',')
-    			            csvWriter.writerows(our_matrix)
-
-    time_elapsed = time.time() - start_time
-    result_list.append((filename,n_tables,time_elapsed))
-
-for entry in result_list:
-    print(entry)
+    		        with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:
+                        SimpleDumpCSV(my_csv,our_matrix)
+        time_elapsed = time.time() - start_time
+        result_list.append((filename,n_tables,time_elapsed))
+    for entry in result_list:
+        print(entry)
 
 

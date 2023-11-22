@@ -36,14 +36,15 @@ def plot_results(pil_img, scores, labels, boxes,n_table):
             ax.text(xmin, ymin, text, fontsize=15,
                 bbox=dict(facecolor='yellow', alpha=0.5))
     plt.axis('off')
-    gowno = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
-    plt.savefig(f'jajca{gowno}.png')
+    rand_bytes = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+    plt.savefig(f'plot_{rand_bytes}.png')
 
 
 
 result_list = []
 dir_path = "../examples/"
-mat = fitz.Matrix(300/72 , 300/72)
+#mat = fitz.Matrix(300/72 , 300/72)
+mat = fitz.Matrix(10,10)
 #feature_extractor = DetrFeatureExtractor()
 directory = os.fsencode(dir_path)
 model_structure = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-structure-recognition")
@@ -77,6 +78,7 @@ def SearchForTable(img, image_processor, model):
     return results
 # dx and dy in this function are variables responsible for how much area outside of the box should also be taken from the image
 def ExtractTable(img, box, dx, dy, model):
+    box = box.tolist()
     new_area = (box[0] - dx, box[1]-dy, box[2]+dx, box[3]+dy)
      # we need to remember origin coordinates of new area to later select right text from page 
     new_img = img.crop(new_area)
@@ -104,7 +106,11 @@ def TableStepByStep(page,mat,model_detection, model_structure, plotting = False)
         if model_detection.config.id2label[label.item()] == "table":
             new_results = ExtractTable(img,box,ENLARGE_X,ENLARGE_Y,model_structure) #image_processor.post_process_object_detection(new_outputs, threshold=0.9,target_sizes=new_target_sizes)[0]
             if plotting:
-                plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
+                box = box.tolist()
+                new_area = (box[0] - ENLARGE_X, box[1]-ENLARGE_Y, box[2]+ENLARGE_X, box[3]+ENLARGE_Y)
+                # we need to remember origin coordinates of new area to later select right text from page 
+                new_img = img.crop(new_area)
+                plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],10)
             rows = []
             cols = []
             for new_score, new_label, new_box in zip(new_results["scores"],new_results["labels"],new_results['boxes']):
@@ -112,29 +118,29 @@ def TableStepByStep(page,mat,model_detection, model_structure, plotting = False)
                     rows.append(new_box)
                 if model_structure.config.id2label[new_label.item()] == "table column":
                     cols.append(new_box)
-                our_matrix = GetMatrixFromStructure(page,mat,rows,cols,box[0]-ENLARGE_X,box[1]-ENLARGE_Y)
-                tables_matrix_form.append(our_matrix)
-    return tables_matrx_form
+            our_matrix = GetMatrixFromStructure(page,mat,rows,cols,box[0]-ENLARGE_X,box[1]-ENLARGE_Y)
+            tables_matrix_form.append(our_matrix)
+    return tables_matrix_form
 
 def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=model_detection, model_structure=model_structure, plotting = False, num_start = None, num_end = None):
     doc = fitz.Document(stream=stream)
     if num_start is None:
         num_start = 0
     if num_end is None:
-        num_end = doc.page_count 
+        num_end = doc.page_count
+    csv_strings = []
     for i in range(num_start,num_end):
         page = doc[i]
         page_text = page.get_text("text")
-        extract = any(keyword in page_text for keyword in keywords)
-        print(f"extract {extract}")
+        extract = any(keyword.lower() in page_text.lower() for keyword in keywords)
         tables = []
         if extract:
             tables = TableStepByStep(page,pix_mat,model_detection,model_structure,plotting)
-        csv_strings = []
         for table in tables:
-            csv_string = io.StringIo()
+            csv_string = io.StringIO()
             SimpleDumpCSV(csv_string,table)
-            csv_strings.append(csv_string)
+            csv_strings.append(csv_string.getvalue())
+            csv_string.close()
     return csv_strings
             
     
@@ -149,7 +155,7 @@ if __name__ == "__main__":
         for page in doc:
             page_text = page.get_text("text")
             if user_input.lower() in page_text.lower():
-                our_matrices = TableStepByStep(page,mat, model_detection, modle_structure, True)
+                our_matrices = TableStepByStep(page,mat, model_detection, model_structure, True)
                 for matrix in our_matrices:
                     n_tables = n_tables + 1
                     with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:

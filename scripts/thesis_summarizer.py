@@ -1,4 +1,5 @@
 import fitz
+import streamlit as st
 import numpy as np
 import pandas as pd
 
@@ -39,12 +40,14 @@ def importFile(file_name, page_num_down = None, page_num_up = None):
 
 def importFileFromStream(stream, page_num_down = None, page_num_up = None):
     doc = fitz.Document(stream=stream)
+    page_count = doc.page_count
+    st.session_state['report_page_count'] = page_count
     text = ""
     n = 0 # artificially created limit, to remove when we will want to process full pdf
     if page_num_down is None:
         page_num_down = 0
     if page_num_up is None:
-        page_num_up = doc.page_count
+        page_num_up = page_count
     text = ""
     for i in range(page_num_down,page_num_up):
         page = doc[i]
@@ -53,7 +56,7 @@ def importFileFromStream(stream, page_num_down = None, page_num_up = None):
         n = n + 1
         #if n > 10:
         #    break
-    print(len(text))
+    #print(len(text))
     return text
 
 def splitTextIntoSentences(text):
@@ -123,6 +126,12 @@ def GetUniqueTokens(column):
     unique_words = set(flattened_list)
     unique_words_list = list(unique_words)
     return unique_words_list
+
+def GetWordsNumber(column):
+    # flatening the column
+    flattened_list = [word for row in column for word in row]
+    word_num = len(flattened_list)
+    return word_num
 
 min_threhold = 1e-5
 def textrank(M, iteration, D):
@@ -199,6 +208,21 @@ def CreateTermFrequencyMatrix(sentences_df, unique_words, tf):
             tf.at[row, word] = sentences_df.at[row, 'Stemmed Words'].count(word)
     return tf
 
+def TMForDocument(tf_matrix, words_num = 15):
+
+    # Sum term frequencies for each word to find the total frequencies
+    word_totals = tf_matrix.sum().sort_values(ascending=False)
+
+    # Select the top 15 words
+    top_words = word_totals.head(words_num)
+
+    # Create a DataFrame for the top words
+    #top_words_df = pd.DataFrame(top_words).reset_index()
+    #top_words_df.columns = ['Word', 'Frequency']
+
+    return top_words
+
+
 def extract_numerics_with_context(text, num_words_before=1):
     """
     Extract numeric values and a specified number of preceding words from a text.
@@ -233,14 +257,21 @@ def step_by_step(text):
     sentences = sent_tokenize(text)
     sentences_df = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences})
     sentences_df['Preprocessed Sentence'] = sentences_df['Preprocessed Sentence'].apply(CleanText)
+
     #we add each sentence as a version of word tokens
     sentences_df['Tokenized Sentence'] = sentences_df['Preprocessed Sentence'].apply(word_tokenize)
+    st.session_state['Word_count'] = GetWordsNumber(sentences_df['Tokenized Sentence'])
+
     #removing combination of general and custom stopwords
     sentences_df = RemoveStopWords(sentences_df, '.')
+
     #perform stemming in english words
     stemmer = SnowballStemmer("english")
     #sentences_df['Tokenized Sentence'] = sentences_df['Tokenized Sentence'].apply(StringToList)
     sentences_df['Stemmed Words'] = sentences_df['Tokenized Sentence'].apply(lambda x : StemWords(x,stemmer))
+
+    st.session_state['preprocessed_df'] = sentences_df
+
     #creating list of unique words
     unique_words = GetUniqueTokens(sentences_df['Stemmed Words'])
     tf = pd.DataFrame(0, index=range(len(sentences_df)), columns=unique_words)
@@ -253,7 +284,10 @@ def step_by_step(text):
 # # Filter the array to keep non-empty rows
 #    tf = tf[non_empty_rows]
 # #saving tf
-# #df = pd.DataFrame(tf)
+
+#list of most occuring words in whole document
+    st.session_state['tf_wordcloud'] = TMForDocument(tf)
+
     #creating similarity matrix
     similarity_matrix = np.zeros((len(sentences_df), len(sentences_df)), dtype = float)
     for i in range(len(sentences_df)):

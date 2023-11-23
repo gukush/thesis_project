@@ -5,7 +5,6 @@ import thesis_summarizer as th
 import css_like as front
 import sentiment_analysis as sa
 import pandas as pd
-import io 
 
 TEXTRANK_SUMMARY = 1
 BART_SUMMARY = 2
@@ -71,7 +70,6 @@ def show_additional_selection():
         #extractive_summary = st.checkbox("Extractive Summary")
         basic_analysis = st.checkbox("Basic Analysis")
         advanced_analysis = st.checkbox("Advanced Analysis")
-        # number_input should be None on default in order to work with ranges in functions
         num_sentences = st.number_input("Number of sentences in summary", min_value=1, value=1, step=1)
 
     with col2:
@@ -81,8 +79,8 @@ def show_additional_selection():
 
     with col3:
         whole_report = st.checkbox("Whole Report")
-        st.session_state['num_start'] = st.number_input("Start from page (0-indexed)", min_value=0, value=None, step=1, key='start_page')
-        st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=None, step=1, key='end_page')
+        st.session_state['num_start'] = st.number_input("Start from page (0-indexed)", min_value=0, value=0, step=1, key='start_page')
+        st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=0, step=1, key='end_page')
 
     # Processing the uploaded file (placeholder logic)
     if uploaded_file is not None:
@@ -134,12 +132,10 @@ def show_advanced_analysis():
                 st.write('Please upload report')
             else:
                 report_data = st.session_state['uploaded_file'].getvalue()
-                csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,plotting=True,num_start=st.session_state['num_start'],num_end=st.session_state['num_end']) 
+                csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,num_start=st.session_state['num_start'],num_end=st.session_state['num_end']) 
                 for csv_string in csv_strings:
-                    csv_string_io = io.StringIO(csv_string)
-                    df = pd.read_csv(csv_string_io)
-                    csv_string_io.close()
-                    st.write(df)
+                    st.write(csv_string)
+                st.write("done")
 
 
 # Sidebar for navigation

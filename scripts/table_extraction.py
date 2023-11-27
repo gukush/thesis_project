@@ -95,12 +95,29 @@ def SimpleDumpCSV(file_like, matrix):
     csvWriter = csv.writer(file_like,delimiter=',')
     csvWriter.writerows(matrix)
 
+SPLIT = True
+
 # gets fitz page object and searches for tables in it, dumping them to file-like object if they get found
 # returns list of tables which are represented like matrices (lists of lists)
 def TableStepByStep(page,mat,model_detection, model_structure, plotting = False):
     pix = page.get_pixmap(matrix=mat)
     img = Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
     results = SearchForTable(img, image_processor, model_detection)
+    if SPLIT:
+        if __name__ == '__main__':
+            img_l, img_r = SplitImageInHalf(img)
+            result_l = SearchForTable(img_l,image_processor,model_detection)
+            result_r = SearchForTable(img_r,image_processor,model_detection)
+    else:
+        result_l = []
+        result_r = []
+    # Comparing splitting of page
+    if SPLIT:
+        if __name__ == '__main__':
+            plot_results(img, results['scores'],results['labels'],results['boxes'],10)
+            plot_results(img_l, result_l['scores'],result_l['labels'],result_l['boxes'],10)
+            plot_results(img_r, result_r['scores'],result_r['labels'],result_r['boxes'],10)
+
     tables_matrix_form = []
     for score, label, box in zip(results["scores"],results["labels"],results["boxes"]):
         if model_detection.config.id2label[label.item()] == "table":
@@ -144,6 +161,20 @@ def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=mod
     return csv_strings
             
     
+# horizontal option is boolean and if true then the images are split horizontally
+# if false then they are split vertically
+def SplitImageInHalf(img,horizontal = True):
+    width, height = img.size
+    if horizontal:
+        lbox = (0,0, width, height // 2)
+        rbox = (0, height // 2, width, height)
+    else:
+        lbox = (0,0,width // 2, height)
+        rbox = (width // 2, 0, width, height)
+
+    img_l = img.crop(lbox)
+    img_r = img.crop(rbox)
+    return img_l, img_r
 
 if __name__ == "__main__":
     for file in os.listdir(directory):
@@ -152,16 +183,20 @@ if __name__ == "__main__":
         start_time = time.time()
         doc = fitz.open(full_path)
         n_tables = 0
+        i = 0
         for page in doc:
-            page_text = page.get_text("text")
-            if user_input.lower() in page_text.lower():
-                our_matrices = TableStepByStep(page,mat, model_detection, model_structure, True)
-                for matrix in our_matrices:
-                    n_tables = n_tables + 1
-                    with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:
-                        SimpleDumpCSV(my_csv,our_matrix)
-        time_elapsed = time.time() - start_time
-        result_list.append((filename,n_tables,time_elapsed))
+            i = i + 1 
+            if i in range(70,80):
+                page_text = page.get_text("text")
+                extract = any(keyword.lower() in page_text.lower() for keyword in keywords)
+                if extract:
+                    our_matrices = TableStepByStep(page,mat, model_detection, model_structure, True)
+                    for matrix in our_matrices:
+                        n_tables = n_tables + 1
+                        with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:
+                            SimpleDumpCSV(my_csv,matrix)
+            time_elapsed = time.time() - start_time
+            result_list.append((filename,n_tables,time_elapsed))
     for entry in result_list:
         print(entry)
 

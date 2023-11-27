@@ -2,9 +2,12 @@ import streamlit as st
 import fitz
 import table_extraction as tab
 import thesis_summarizer as th
+import extracting_data as ed
 import css_like as front
 import sentiment_analysis as sa
 import pandas as pd
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
 
 TEXTRANK_SUMMARY = 1
 BART_SUMMARY = 2
@@ -28,19 +31,24 @@ def show_main_content():
             report_data = st.session_state['uploaded_file'].getvalue()
             report_text = th.importFileFromStream(report_data)
             st.session_state['report_text'] = report_text
+            if not st.session_state['whole_report']:
+                bounded_report_text = th.importFileFromStream(report_data, st.session_state['num_start'],
+                                                              st.session_state['num_end'])
+                st.session_state['bounded_report_text'] = bounded_report_text
             if 'summary' not in st.session_state:
                 #some default stuff
                 pass
             elif st.session_state['summary'] == TEXTRANK_SUMMARY:
                 # TODO - add logic for outputting summary into simple text
                 #st.write("Here would be textrank summary")
-                top20 = th.step_by_step(report_text)
+                top20 = th.step_by_step(bounded_report_text)
                 st.write(top20)
-            else:
+                st.write(st.session_state['report_page_count'])
+            #else:
                 # TODO - make the import process make more sense (it loads for a long time initially)
-                import bart_summarizer
-                report_summary = bart_summarizer.abstractive(report_text,1000)
-                st.write(report_summary)
+                #import bart_summarizer
+                #report_summary = bart_summarizer.abstractive(report_text,1000)
+                #st.write(report_summary)
                 #st.write(report_summary[0]['summary_text'])
             #st.write(report_text)
 
@@ -68,7 +76,7 @@ def show_additional_selection():
         else:
             st.session_state['summary'] = BART_SUMMARY
         #extractive_summary = st.checkbox("Extractive Summary")
-        basic_analysis = st.checkbox("Basic Analysis")
+        st.session_state['basic_analysis'] = st.checkbox("Basic Analysis", True)
         advanced_analysis = st.checkbox("Advanced Analysis")
         num_sentences = st.number_input("Number of sentences in summary", min_value=1, value=1, step=1)
 
@@ -78,22 +86,72 @@ def show_additional_selection():
         shareholder = st.checkbox("Shareholder")
 
     with col3:
-        whole_report = st.checkbox("Whole Report")
+        st.session_state['whole_report'] = st.checkbox("Whole Report", False)
         st.session_state['num_start'] = st.number_input("Start from page (0-indexed)", min_value=0, value=0, step=1, key='start_page')
-        st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=0, step=1, key='end_page')
+        st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=5, step=1, key='end_page')
 
     # Processing the uploaded file (placeholder logic)
     if uploaded_file is not None:
         st.write("File processing logic goes here.")
         st.session_state['uploaded_file'] = uploaded_file
 
+
+def show_basic_analysis():
+    st.title('Basic Analysis')
+
+
+    if st.session_state['basic_analysis'] and st.session_state['uploaded_file']:
+        st.session_state['company_name'] = ed.get_company_name(st.session_state['report_text'])
+        #print(st.session_state['report_text'])
+        st.write(st.session_state['company_name'])
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader('Company Details')
+            company = st.text_input('Company', st.session_state['company_name'])
+            year = st.number_input('Year', value=0000)
+            report_type = st.selectbox('Type', ['ANNUAL REPORT', 'FINANCIAL STATEMENT', 'OTHER'])
+            industry = st.selectbox('Industry', ['INSURANCE', 'TECHNOLOGY', 'HEALTHCARE'])
+            pages = st.number_input('Pages', value=st.session_state['report_page_count'])
+            avg_words = st.number_input('Average Words per Page', value= st.session_state['Word_count']/st.session_state['report_page_count'])
+            reading_time = st.number_input('Reading Time', value = st.session_state['Word_count']/250)
+            sentences = st.number_input('Number of Sentences', value=len(st.session_state['preprocessed_df']))
+
+        # You can add functionality to process and update these details as needed.
+
+    with col2:
+        st.subheader('Key Word Analysis of the Report')
+
+        # Assuming you have the keywords and their frequencies
+        #keywords = ['fun', 'easy', 'inclusive', 'share', 'software', 'live', 'beautiful', 'reflection', 'thoughts',
+        #            'interactive', 'brainstorm', 'knowledge', 'ideas', 'ice breaker']
+       # frequencies = [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1]
+
+        tf_wordloud = st.session_state['tf_wordcloud']
+        st.write(tf_wordloud)
+        wordcloud = WordCloud(width=800, height=400).generate_from_frequencies(tf_wordloud)
+        plt.figure(figsize=(10, 5))
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis('off')
+        st.pyplot(plt)
+
+        # For the bar chart, assuming you have the data
+        data = pd.Series([0.2, 0.15, 0.10, 0.05, 0.03, 0.02, 0.01, 0.005, 0.003],
+                         index=[1, 2, 3, 4, 5, 6, 7, 8, 9])
+        st.bar_chart(data)
+
+    additional_topic = st.text_area('Add Additional Topic for Modelling (Optional)')
+    if st.button('Process Report'):
+        # Here you can define what processing occurs when the button is clicked
+        st.write(f'Processing report for {company}...')
+        # Add your processing functions here
+
+
 def show_advanced_analysis():
     # Advanced Analysis Tab Content
     st.header("Advanced Analysis")
     if 'report_text' in st.session_state:
-        text = st.session_state['report_text']
-        sentences_df = sa.preprocessing(text, 5)
-        #sentences_df = sa.extract_sentences_with_keywords(sa.ESG_keywords, sentences_df)
+        ESG_sentences = sa.extract_sentences_with_keywords(sa.ESG_keywords, st.session_state['preprocessed_df'])
     col1, col2 = st.columns(2)
 
     # Financial Section
@@ -110,7 +168,10 @@ def show_advanced_analysis():
         st.text_area('Sentiment of sentences about Environment')
         #TODO wymyślić sprytniejszy warunek
         if 'report_text' in st.session_state:
-            st.dataframe(sentences_df)
+            #st.write(ESG_sentences)
+            ESG_sentiment_df = sa.analyze_sentiment(ESG_sentences)
+            st.write(ESG_sentiment_df)
+            st.write("Average sentiment score", ESG_sentiment_df.sum("Sentiment Score"))
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Goals and Objectives Section
@@ -151,7 +212,7 @@ elif app_mode == "Summary Results":
 elif app_mode == "Additional Selection":
     show_additional_selection()
 elif app_mode == "Basic analysis":
-    show_additional_selection()
+    show_basic_analysis()
 elif app_mode == "Advanced Analysis":
     show_advanced_analysis()
 

@@ -32,6 +32,7 @@ def importFile(file_name, page_num_down = None, page_num_up = None):
         if page_num_up is None:
             page_num_up = doc.page_count
         text = ""
+        text = ""
         for i in range(page_num_down,page_num_up):
             page = doc[i]
             text_ = page.get_text("text")
@@ -67,7 +68,7 @@ def RemoveStopWords(sentences_df, current_directory):
     standard_stopwords = stopwords.words('english')
     sentences = sentences_df['Tokenized Sentence']
 
-    print(sentences)
+    #print(sentences)
 
     # Check if the file exists
     combined_stopword = standard_stopwords

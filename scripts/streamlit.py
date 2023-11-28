@@ -92,15 +92,14 @@ def show_additional_selection():
 
     # Processing the uploaded file (placeholder logic)
     if uploaded_file is not None:
-        st.write("File processing logic goes here.")
+        #st.write("File processing logic goes here.")
         st.session_state['uploaded_file'] = uploaded_file
 
 
 def show_basic_analysis():
     st.title('Basic Analysis')
 
-
-    if st.session_state['basic_analysis'] and st.session_state['uploaded_file']:
+    if all((key in st.session_state) and (key is not None) for key in ('basic_analysis','uploaded_file','report_text')):# st.session_state['basic_analysis'] and st.session_state['uploaded_file']: // changed it because it crashes when file was not uploaded
         st.session_state['company_name'] = ed.get_company_name(st.session_state['report_text'])
         #print(st.session_state['report_text'])
         st.write(st.session_state['company_name'])
@@ -118,33 +117,35 @@ def show_basic_analysis():
             sentences = st.number_input('Number of Sentences', value=len(st.session_state['preprocessed_df']))
 
         # You can add functionality to process and update these details as needed.
+        with col2:
+            st.subheader('Key Word Analysis of the Report')
 
-    with col2:
-        st.subheader('Key Word Analysis of the Report')
+            # Assuming you have the keywords and their frequencies
+            #keywords = ['fun', 'easy', 'inclusive', 'share', 'software', 'live', 'beautiful', 'reflection', 'thoughts',
+            #            'interactive', 'brainstorm', 'knowledge', 'ideas', 'ice breaker']
+           # frequencies = [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1]
 
-        # Assuming you have the keywords and their frequencies
-        #keywords = ['fun', 'easy', 'inclusive', 'share', 'software', 'live', 'beautiful', 'reflection', 'thoughts',
-        #            'interactive', 'brainstorm', 'knowledge', 'ideas', 'ice breaker']
-       # frequencies = [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1]
+            tf_wordloud = st.session_state['tf_wordcloud']
+            st.write(tf_wordloud)
+            wordcloud = WordCloud(width=800, height=400).generate_from_frequencies(tf_wordloud)
+            plt.figure(figsize=(10, 5))
+            plt.imshow(wordcloud, interpolation='bilinear')
+            plt.axis('off')
+            st.pyplot(plt)
 
-        tf_wordloud = st.session_state['tf_wordcloud']
-        st.write(tf_wordloud)
-        wordcloud = WordCloud(width=800, height=400).generate_from_frequencies(tf_wordloud)
-        plt.figure(figsize=(10, 5))
-        plt.imshow(wordcloud, interpolation='bilinear')
-        plt.axis('off')
-        st.pyplot(plt)
-
-        # For the bar chart, assuming you have the data
-        data = pd.Series([0.2, 0.15, 0.10, 0.05, 0.03, 0.02, 0.01, 0.005, 0.003],
-                         index=[1, 2, 3, 4, 5, 6, 7, 8, 9])
-        st.bar_chart(data)
-
-    additional_topic = st.text_area('Add Additional Topic for Modelling (Optional)')
-    if st.button('Process Report'):
-        # Here you can define what processing occurs when the button is clicked
-        st.write(f'Processing report for {company}...')
-        # Add your processing functions here
+            # For the bar chart, assuming you have the data
+            data = pd.Series([0.2, 0.15, 0.10, 0.05, 0.03, 0.02, 0.01, 0.005, 0.003],
+                             index=[1, 2, 3, 4, 5, 6, 7, 8, 9])
+            st.bar_chart(data)
+        # TODO: is this in correct section? I moved it
+        additional_topic = st.text_area('Add Additional Topic for Modelling (Optional)')
+        if st.button('Process Report'):
+            # Here you can define what processing occurs when the button is clicked
+            st.write(f'Processing report for {company}...')
+            # Add your processing functions here
+    else:
+        st.write("Please upload file in \"Additional selection\" page and then run the pipeline!")
+ 
 
 
 def show_advanced_analysis():
@@ -193,7 +194,12 @@ def show_advanced_analysis():
                 st.write('Please upload report')
             else:
                 report_data = st.session_state['uploaded_file'].getvalue()
-                csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,num_start=st.session_state['num_start'],num_end=st.session_state['num_end']) 
+                model_structure, model_detection, image_processor = tab.initializeTable()
+                csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,
+                                                            num_start=st.session_state['num_start'],num_end=st.session_state['num_end'],
+                                                            model_structure = model_structure, model_detection = model_detection,
+                                                            image_processor = image_processor
+                                                            ) 
                 for csv_string in csv_strings:
                     st.write(csv_string)
                 st.write("done")

@@ -47,9 +47,11 @@ dir_path = "../examples/"
 mat = fitz.Matrix(10,10)
 #feature_extractor = DetrFeatureExtractor()
 directory = os.fsencode(dir_path)
-model_structure = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-structure-recognition")
-model_detection = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-detection")
-image_processor = AutoImageProcessor.from_pretrained("microsoft/table-transformer-structure-recognition")
+def initializeTable():
+    model_structure = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-structure-recognition")
+    model_detection = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-detection")
+    image_processor = AutoImageProcessor.from_pretrained("microsoft/table-transformer-structure-recognition")
+    return model_structure, model_detection, image_processor
 #user_input = input("Type table to search for: ")
 
 
@@ -99,7 +101,7 @@ SPLIT = True
 
 # gets fitz page object and searches for tables in it, dumping them to file-like object if they get found
 # returns list of tables which are represented like matrices (lists of lists)
-def TableStepByStep(page,mat,model_detection, model_structure, plotting = False):
+def TableStepByStep(page,mat,model_detection, model_structure, image_processor, plotting = False):
     pix = page.get_pixmap(matrix=mat)
     img = Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
     results = SearchForTable(img, image_processor, model_detection)
@@ -139,7 +141,7 @@ def TableStepByStep(page,mat,model_detection, model_structure, plotting = False)
             tables_matrix_form.append(our_matrix)
     return tables_matrix_form
 
-def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=model_detection, model_structure=model_structure, plotting = False, num_start = None, num_end = None):
+def TableExtractionFromStream(stream, keywords, model_detection, model_structure, image_processor, pix_mat = mat, plotting = False, num_start = None, num_end = None):
     doc = fitz.Document(stream=stream)
     if num_start is None:
         num_start = 0
@@ -152,7 +154,7 @@ def TableExtractionFromStream(stream, keywords, pix_mat=mat, model_detection=mod
         extract = any(keyword.lower() in page_text.lower() for keyword in keywords)
         tables = []
         if extract:
-            tables = TableStepByStep(page,pix_mat,model_detection,model_structure,plotting)
+            tables = TableStepByStep(page,pix_mat,model_detection,model_structure,image_processor,plotting)
         for table in tables:
             csv_string = io.StringIO()
             SimpleDumpCSV(csv_string,table)
@@ -190,6 +192,7 @@ if __name__ == "__main__":
                 page_text = page.get_text("text")
                 extract = any(keyword.lower() in page_text.lower() for keyword in keywords)
                 if extract:
+                    model_structure, model_detection, image_processor = initializeTable()
                     our_matrices = TableStepByStep(page,mat, model_detection, model_structure, True)
                     for matrix in our_matrices:
                         n_tables = n_tables + 1

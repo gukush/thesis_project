@@ -34,3 +34,13 @@ def generate_custom_styles():
         unsafe_allow_html=True
     )
 
+    # Determine the color based on the sentiment value
+def get_slider_color(value):
+        if value < -0.5:
+            return "red"
+        elif value < 0.5:
+            return "yellow"
+        else:
+            return "green"
+
+

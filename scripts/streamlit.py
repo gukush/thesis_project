@@ -11,6 +11,7 @@ from wordcloud import WordCloud
 
 TEXTRANK_SUMMARY = 1
 BART_SUMMARY = 2
+ERROR_SUMMARY = 3
 
 front.generate_custom_styles()
 
@@ -44,13 +45,15 @@ def show_main_content():
                 top20 = th.step_by_step(bounded_report_text)
                 st.write(top20)
                 st.write(st.session_state['report_page_count'])
-            #else:
+            elif st.session_state['summary'] == BART_SUMMARY:
                 # TODO - make the import process make more sense (it loads for a long time initially)
-                #import bart_summarizer
-                #report_summary = bart_summarizer.abstractive(report_text,1000)
-                #st.write(report_summary)
-                #st.write(report_summary[0]['summary_text'])
-            #st.write(report_text)
+                import bart_summarizer
+                if 'num_sentences' not in st.session_state:
+                    num_sentences = 20
+                else:
+                    num_sentences = st.session_state['num_sentences']
+                report_summary = bart_summarizer.abstractive(bounded_report_text,num_sentences)
+                st.write(report_summary)
 
     # Your main page content here
 # TODO - move the st.write calls that show summary results to this section (too tired rn)
@@ -73,12 +76,14 @@ def show_additional_selection():
         option = st.selectbox('Choose type of summarization',('Extractive (textrank)','Abstractive (BART)'),index=0)
         if 'textrank' in option:
             st.session_state['summary'] = TEXTRANK_SUMMARY
-        else:
+        elif 'BART' in option:
             st.session_state['summary'] = BART_SUMMARY
+        else:
+            st_session_state['summary'] = ERROR_SUMMARY
         #extractive_summary = st.checkbox("Extractive Summary")
         st.session_state['basic_analysis'] = st.checkbox("Basic Analysis", True)
         advanced_analysis = st.checkbox("Advanced Analysis")
-        num_sentences = st.number_input("Number of sentences in summary", min_value=1, value=1, step=1)
+        st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=1, step=1)
 
     with col2:
         analyst = st.checkbox("Analyst")

@@ -20,7 +20,7 @@ COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
 ENLARGE_X = 100
 ENLARGE_Y = 100
 
-keywords = ['consolidated statement']
+keywords = ['consolidated statement','financial statements']
 
 def plot_results(pil_img, scores, labels, boxes,n_table):
     plt.clf()
@@ -79,7 +79,7 @@ def SearchForTable(img, image_processor, model):
     results = image_processor.post_process_object_detection(outputs, threshold = 0.9, target_sizes=target_sizes)[0]
     return results
 # dx and dy in this function are variables responsible for how much area outside of the box should also be taken from the image
-def ExtractTable(img, box, dx, dy, model):
+def ExtractTable(img, box, dx, dy, model, image_processor):
     box = box.tolist()
     new_area = (box[0] - dx, box[1]-dy, box[2]+dx, box[3]+dy)
      # we need to remember origin coordinates of new area to later select right text from page 
@@ -105,25 +105,10 @@ def TableStepByStep(page,mat,model_detection, model_structure, image_processor, 
     pix = page.get_pixmap(matrix=mat)
     img = Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
     results = SearchForTable(img, image_processor, model_detection)
-    if SPLIT:
-        if __name__ == '__main__':
-            img_l, img_r = SplitImageInHalf(img)
-            result_l = SearchForTable(img_l,image_processor,model_detection)
-            result_r = SearchForTable(img_r,image_processor,model_detection)
-    else:
-        result_l = []
-        result_r = []
-    # Comparing splitting of page
-    if SPLIT:
-        if __name__ == '__main__':
-            plot_results(img, results['scores'],results['labels'],results['boxes'],10)
-            plot_results(img_l, result_l['scores'],result_l['labels'],result_l['boxes'],10)
-            plot_results(img_r, result_r['scores'],result_r['labels'],result_r['boxes'],10)
-
     tables_matrix_form = []
     for score, label, box in zip(results["scores"],results["labels"],results["boxes"]):
         if model_detection.config.id2label[label.item()] == "table":
-            new_results = ExtractTable(img,box,ENLARGE_X,ENLARGE_Y,model_structure) #image_processor.post_process_object_detection(new_outputs, threshold=0.9,target_sizes=new_target_sizes)[0]
+            new_results = ExtractTable(img,box,ENLARGE_X,ENLARGE_Y,model_structure,image_processor) #image_processor.post_process_object_detection(new_outputs, threshold=0.9,target_sizes=new_target_sizes)[0]
             if plotting:
                 box = box.tolist()
                 new_area = (box[0] - ENLARGE_X, box[1]-ENLARGE_Y, box[2]+ENLARGE_X, box[3]+ENLARGE_Y)
@@ -188,12 +173,12 @@ if __name__ == "__main__":
         i = 0
         for page in doc:
             i = i + 1 
-            if i in range(70,80):
+            if i in range(40,70):
                 page_text = page.get_text("text")
                 extract = any(keyword.lower() in page_text.lower() for keyword in keywords)
                 if extract:
                     model_structure, model_detection, image_processor = initializeTable()
-                    our_matrices = TableStepByStep(page,mat, model_detection, model_structure, True)
+                    our_matrices = TableStepByStep(page,mat, model_detection, model_structure, image_processor,True)
                     for matrix in our_matrices:
                         n_tables = n_tables + 1
                         with open(f"test_matrix{n_tables}.csv", "w+") as my_csv:

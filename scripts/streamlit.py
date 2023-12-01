@@ -180,7 +180,7 @@ def show_advanced_analysis():
             st.write("Average sentiment score", ESG_sentiment_df.sum("Sentiment Score"))
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Goals and Objectives Section
+    # Goals and Objectives Section
     with col2:
         st.markdown('<div class="goals-section">', unsafe_allow_html=True)
         st.subheader('Goals and Objectives')
@@ -193,27 +193,37 @@ def show_advanced_analysis():
         st.text_area('Sentiment of sentences about Risks and Threats')
         st.markdown('</div>', unsafe_allow_html=True)
 
+def show_table_extraction():
     # Extract Table Button at the bottom
-        if st.button("Extract Table (If it works)"):
-            if 'uploaded_file' not in st.session_state:
-                st.write('Please upload report')
-            else:
-                report_data = st.session_state['uploaded_file'].getvalue()
-                model_structure, model_detection, image_processor = tab.initializeTable()
-                csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,
-                                                            num_start=st.session_state['num_start'],num_end=st.session_state['num_end'],
-                                                            model_structure = model_structure, model_detection = model_detection,
-                                                            image_processor = image_processor
-                                                            ) 
-                for csv_string in csv_strings:
-                    st.write(csv_string)
-                st.write("done")
+    if st.button("Extract Table (If it works)"):
+        if 'uploaded_file' not in st.session_state:
+            st.write('Please upload report')
+        else:
+            report_data = st.session_state['uploaded_file'].getvalue()
+            # TODO: make initialization once per session
+            model_structure, model_detection, image_processor = tab.initializeTable()
+            csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,
+                                                        num_start=st.session_state['num_start'],num_end=st.session_state['num_end'],
+                                                        model_structure = model_structure, model_detection = model_detection,
+                                                        image_processor = image_processor
+                                                        )
+            n_table = 0
+            for csv_string in csv_strings:
+                n_table = n_table + 1
+                st.write(csv_string)
+                st.download_button(
+                        "Download csv file",
+                        csv_string,
+                        f"table_{n_table}.csv",
+                        "text/csv"
+                        )
+            st.write("done")
 
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.radio("Choose the Page",
-                            ["Main Page", "Summary Results", "Additional Selection", "Basic analysis", "Advanced Analysis" ])
+                            ["Main Page", "Summary Results", "Additional Selection", "Basic analysis", "Advanced Analysis", "Table Extraction" ])
 
 # Page routing based on sidebar selection
 if app_mode == "Main Page":
@@ -226,4 +236,6 @@ elif app_mode == "Basic analysis":
     show_basic_analysis()
 elif app_mode == "Advanced Analysis":
     show_advanced_analysis()
+elif app_mode == "Table Extraction":
+    show_table_extraction()
 

@@ -7,6 +7,11 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 #from streamlit import
 
+try: 
+    nltk.data.find('sentiment/vader_lexicon.zip')
+except LookupError:
+    nltk.download('vader_lexicon')
+
 
 ESG_keywords = ["social", "global", "environmental", "ESG", "esg"]
 # Define a function that will check if any keyword is in the sentence

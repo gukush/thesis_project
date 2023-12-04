@@ -15,52 +15,41 @@ ERROR_SUMMARY = 3
 
 front.generate_custom_styles()
 
-# set initial session state (TODO: might put into separate function)
-if 'num_start' not in st.session_state:
-    st.session_state['num_start'] = None
-if 'num_end' not in st.session_state:
-    st.session_state['num_end'] = None
+def process_report(uploaded_file, summary_type, num_start, num_end, num_sentences):
+    if uploaded_file is None:
+        return "Please upload a report"
+    else:
+        report_data = uploaded_file.getvalue()
+        st.session_state["report_text"] = th.importFileFromStream(report_data)
+        bounded_report_text = th.importFileFromStream(report_data, num_start, num_end)
+        st.session_state["bounded_report_text"] = bounded_report_text
+
+        if summary_type == TEXTRANK_SUMMARY:
+            top20 = th.step_by_step(bounded_report_text)
+            return top20
+        elif summary_type == BART_SUMMARY:
+            import bart_summarizer
+            report_summary = bart_summarizer.abstractive(bounded_report_text, num_sentences)
+            return report_summary
+        else:
+            return "Invalid summary type"
+
 
 # Function for the main content
 def show_main_content():
     st.header("Welcome in pipeline for extracting and summarizing data from business reports!")
-    if st.button('Run pipeline'):
-        st.write('Pipeline is being run')
-        if 'uploaded_file' not in st.session_state:
-            st.write('Please upload report')
-        else:
-            report_data = st.session_state['uploaded_file'].getvalue()
-            report_text = th.importFileFromStream(report_data)
-            st.session_state['report_text'] = report_text
-            if not st.session_state['whole_report']:
-                bounded_report_text = th.importFileFromStream(report_data, st.session_state['num_start'],
-                                                              st.session_state['num_end'])
-                st.session_state['bounded_report_text'] = bounded_report_text
-            if 'summary' not in st.session_state:
-                #some default stuff
-                pass
-            elif st.session_state['summary'] == TEXTRANK_SUMMARY:
-                # TODO - add logic for outputting summary into simple text
-                #st.write("Here would be textrank summary")
-                top20 = th.step_by_step(bounded_report_text)
-                st.write(top20)
-                st.write(st.session_state['report_page_count'])
-            elif st.session_state['summary'] == BART_SUMMARY:
-                # TODO - make the import process make more sense (it loads for a long time initially)
-                import bart_summarizer
-                if 'num_sentences' not in st.session_state:
-                    num_sentences = 20
-                else:
-                    num_sentences = st.session_state['num_sentences']
-                report_summary = bart_summarizer.abstractive(bounded_report_text,num_sentences)
-                st.write(report_summary)
-
-    # Your main page content here
-# TODO - move the st.write calls that show summary results to this section (too tired rn)
+    st.header("Please use the navigation panel to move through sections")
+    st.header("To run the pipeline go to advanced selection panel, and configure your output")
 # Function for the summary results
 def show_summary_results():
     st.header("Summary Results")
     # Your summary results content here
+    if "summary_results" in st.session_state :
+        st.write(st.session_state["summary_results"])
+    else:
+        st.write("Summary results not available.")
+
+    st.write(st.session_state["similarity_matrix"])
 
 # Function for the additional selection page
 def show_additional_selection():
@@ -79,11 +68,11 @@ def show_additional_selection():
         elif 'BART' in option:
             st.session_state['summary'] = BART_SUMMARY
         else:
-            st_session_state['summary'] = ERROR_SUMMARY
+            st.session_state['summary'] = ERROR_SUMMARY
         #extractive_summary = st.checkbox("Extractive Summary")
         st.session_state['basic_analysis'] = st.checkbox("Basic Analysis", True)
         advanced_analysis = st.checkbox("Advanced Analysis")
-        st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=1, step=1)
+        st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=20, step=1)
 
     with col2:
         analyst = st.checkbox("Analyst")
@@ -96,10 +85,11 @@ def show_additional_selection():
         st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=5, step=1, key='end_page')
 
     # Processing the uploaded file (placeholder logic)
-    if uploaded_file is not None:
+    if st.button('Run pipeline') and uploaded_file is not None:
         #st.write("File processing logic goes here.")
         st.session_state['uploaded_file'] = uploaded_file
-
+        st.session_state['summary_results'] = process_report(uploaded_file, st.session_state['summary'], st.session_state['num_start'], st.session_state['num_end'], st.session_state['num_sentences'] )
+        st.write("Your summary is ready. Visit summary tab to see it!")
 
 def show_basic_analysis():
     st.title('Basic Analysis')
@@ -141,44 +131,34 @@ def show_basic_analysis():
             # For the bar chart, assuming you have the data
             data = pd.Series([0.2, 0.15, 0.10, 0.05, 0.03, 0.02, 0.01, 0.005, 0.003],
                              index=[1, 2, 3, 4, 5, 6, 7, 8, 9])
-            st.bar_chart(data)
-        # TODO: is this in correct section? I moved it
-        additional_topic = st.text_area('Add Additional Topic for Modelling (Optional)')
-        if st.button('Process Report'):
-            # Here you can define what processing occurs when the button is clicked
-            st.write(f'Processing report for {company}...')
-            # Add your processing functions here
+            #st.bar_chart(data)
     else:
         st.write("Please upload file in \"Additional selection\" page and then run the pipeline!")
- 
-
 
 def show_advanced_analysis():
     # Advanced Analysis Tab Content
     st.header("Advanced Analysis")
-    if 'report_text' in st.session_state:
+
+    if 'bounded_report_text' in st.session_state:
         ESG_sentences = sa.extract_sentences_with_keywords(sa.ESG_keywords, st.session_state['preprocessed_df'])
-    col1, col2 = st.columns(2)
+        Goals_sentences = sa.extract_sentences_with_keywords(sa.Risk_keywords, st.session_state['preprocessed_df'])
+        Risks_sentences = sa.extract_sentences_with_keywords(sa.Goals_keywords, st.session_state['preprocessed_df'])
 
-    # Financial Section
-    with col1:
-        st.markdown('<div class="financial-section">', unsafe_allow_html=True)
-        st.subheader('Financial')
-        st.text_input('Total Revenue')
-        st.text_input('Total Assets')
-        st.markdown('</div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        ESG_sentiment_df = sa.analyze_sentiment(ESG_sentences)
+        st.write(ESG_sentiment_df)
+        average_sentiment = ESG_sentiment_df["Sentiment Score"].mean()
+        st.write("Average sentiment score", average_sentiment)
+        st.session_state['average_sentiment'] = average_sentiment
+        # Slider
+        sentiment_value = st.slider("ESG Sentiment Score", min_value=-1.0, max_value=1.0,
+                                    value=float(average_sentiment), disabled=True)
+        color = front.get_slider_color(sentiment_value)
+        color_html = f"<div style='width: 50px; height: 20px; background-color: {color};'></div>"
+        st.markdown(color_html, unsafe_allow_html=True)
+        # Display the color indicator
 
-        # ESG Section
-        st.markdown('<div class="esg-section">', unsafe_allow_html=True)
-        st.subheader('ESG')
-        st.text_area('Sentiment of sentences about Environment')
-        #TODO wymyślić sprytniejszy warunek
-        if 'report_text' in st.session_state:
-            #st.write(ESG_sentences)
-            ESG_sentiment_df = sa.analyze_sentiment(ESG_sentences)
-            st.write(ESG_sentiment_df)
-            st.write("Average sentiment score", ESG_sentiment_df.sum("Sentiment Score"))
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Goals and Objectives Section
     with col2:
@@ -187,11 +167,33 @@ def show_advanced_analysis():
         st.text_area('Main Goals, based on the ranks from Text Rank')
         st.markdown('</div>', unsafe_allow_html=True)
 
+        Goals_sentiment_df = sa.analyze_sentiment(Goals_sentences)
+        st.write(Goals_sentiment_df)
+        average_goals_sentiment = Goals_sentiment_df["Sentiment Score"].mean()
+        st.write("Average sentiment score", average_goals_sentiment)
+        # Slider
+        sentiment_value = st.slider("Goals and objectives Sentiment Score", min_value=-1.0, max_value=1.0,
+                                    value=float(average_goals_sentiment), disabled=True)
+        color = front.get_slider_color(sentiment_value)
+        color_html = f"<div style='width: 50px; height: 20px; background-color: {color};'></div>"
+        st.markdown(color_html, unsafe_allow_html=True)
+
         # Risks and Threats Section
         st.markdown('<div class="risks-section">', unsafe_allow_html=True)
         st.subheader('Risks and Threats')
         st.text_area('Sentiment of sentences about Risks and Threats')
         st.markdown('</div>', unsafe_allow_html=True)
+
+        Risks_sentiment_df = sa.analyze_sentiment(Risks_sentences)
+        st.write(Risks_sentiment_df)
+        average_risks_sentiment = Risks_sentiment_df["Sentiment Score"].mean()
+        st.write("Average sentiment score", average_risks_sentiment)
+        # Slider
+        sentiment_value = st.slider("ESG Sentiment Score", min_value=-1.0, max_value=1.0,
+                                    value=float(average_risks_sentiment), disabled=True)
+        color = front.get_slider_color(sentiment_value)
+        color_html = f"<div style='width: 50px; height: 20px; background-color: {color};'></div>"
+        st.markdown(color_html, unsafe_allow_html=True)
 
 def show_table_extraction():
     # Extract Table Button at the bottom

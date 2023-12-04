@@ -2,6 +2,7 @@ import fitz
 import streamlit as st
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import nltk
 try: 
@@ -23,21 +24,21 @@ import networkx as nx
 import ast
 
 #function responsible for importing given pages
-def importFile(file_name, page_num_down = None, page_num_up = None):
-    #TODO: add support for extracting range of pages (currenlty extracts whole doc)
-    with fitz.open(report_path) as pdf:
-        # Extract text from the first page
-        if page_num_down is None:
-            page_num_down = 0
-        if page_num_up is None:
-            page_num_up = doc.page_count
-        text = ""
-        text = ""
-        for i in range(page_num_down,page_num_up):
-            page = doc[i]
-            text_ = page.get_text("text")
-            text += text_
-    return text
+# def importFile(file_name, page_num_down = None, page_num_up = None):
+#     #TODO: add support for extracting range of pages (currenlty extracts whole doc)
+#     with fitz.open(report_path) as pdf:
+#         # Extract text from the first page
+#         if page_num_down is None:
+#             page_num_down = 0
+#         if page_num_up is None:
+#             page_num_up = doc.page_count
+#         text = ""
+#         text = ""
+#         for i in range(page_num_down,page_num_up):
+#             page = doc[i]
+#             text_ = page.get_text("text")
+#             text += text_
+#     return text
 
 def importFileFromStream(stream, page_num_down = None, page_num_up = None):
     doc = fitz.Document(stream=stream)
@@ -95,19 +96,6 @@ def RemoveStopWords(sentences_df, current_directory):
     return sentences_df
 
     #clean_sentences = [RemoveStopWords(r.split(), combined_stopword) for r in clean_sentences]
-
-def RemoveShortSentences(sentences_df, sentence_minimal_len):
-    sentences = sentences_df["Preprocessed Sentences"]
-
-    filtered_sentences = [i for i in sentences if len(i.split()) >= sentence_minimal_len ]
-
-    return filtered_sentences
-
-    # for i in sentences:
-    #     if len(cleaned_sentence.split()) >= sentence_minimal_len:
-    #         cleaned_sentences.append(cleaned_sentence)
-    #     else:
-    #         print(cleaned_sentence)
 
 #function resposible for cleaning
 def CleanText(sentence):
@@ -186,10 +174,6 @@ def cosine_similarity(a,b):
 def is_sentence_long_enough(sentence, min_length):
     return len(sentence.split()) >= min_length
 
-def RemoveShortSentences(sentences_df, sentence_minimal_len):
-    # Apply the is_sentence_long_enough function to filter the dataframe
-    filtered_df = sentences_df[sentences_df["Preprocessed Sentences"].apply(is_sentence_long_enough, min_length=sentence_minimal_len)]
-    return filtered_df
 
 #sometimes we need to change string for list
 def StringToList(string):
@@ -271,20 +255,19 @@ def step_by_step(text):
     #sentences_df['Tokenized Sentence'] = sentences_df['Tokenized Sentence'].apply(StringToList)
     sentences_df['Stemmed Words'] = sentences_df['Tokenized Sentence'].apply(lambda x : StemWords(x,stemmer))
 
+    original_count = len(sentences_df)
+    unique_words = GetUniqueTokens(sentences_df['Stemmed Words'])
+    sentences_df = sentences_df[sentences_df['Stemmed Words'].apply(lambda x: len(x) >= 7)]
+    sentences_df.reset_index(drop=True, inplace=True)
     st.session_state['preprocessed_df'] = sentences_df
+
+    removed_count = original_count - len(sentences_df)
+    print(removed_count)
 
     #creating list of unique words
     unique_words = GetUniqueTokens(sentences_df['Stemmed Words'])
     tf = pd.DataFrame(0, index=range(len(sentences_df)), columns=unique_words)
-    tf = CreateTermFrequencyMatrix(sentences_df,unique_words,tf)
-#    tf = tf.rename(columns=unique_words)
-#
-# #checking if we don't have empty vectors
-#    non_empty_rows = ~np.all(tf == 0, axis=1)
-#
-# # Filter the array to keep non-empty rows
-#    tf = tf[non_empty_rows]
-# #saving tf
+    tf = CreateTermFrequencyMatrix(sentences_df, unique_words, tf)
 
 #list of most occuring words in whole document
     st.session_state['tf_wordcloud'] = TMForDocument(tf)
@@ -299,10 +282,21 @@ def step_by_step(text):
               tf_vector_j = tf.iloc[j].values
              # Calculate cosine similarity and assign it to the similarity matrix
               similarity_matrix[i, j] = cosine_similarity(tf_vector_i, tf_vector_j)
-# df = pd.DataFrame(similarity_matrix)
-    #V = textrank(similarity_matrix, 400, 0.85)
+
+    st.session_state['similarity_matrix'] = similarity_matrix
     nx_graph = nx.from_numpy_array(similarity_matrix)
-    scores = nx.pagerank(nx_graph, max_iter = 1000)
+    #print(nx_graph)
+    scores = nx.pagerank(nx_graph, max_iter=2000, alpha=0.9,tol=1.6e-6)
+    # Draw the graph
+    #plt.figure(figsize=(10, 10))  # Set the size of the figure (optional)
+    #nx.draw(nx_graph, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)
+    #plt.title("Graph Representation")
+
+    # Show the graph
+    #plt.show()
+
+    # Save the graph to a file
+    #plt.savefig("/thesis_project/examples/my_graph.png", format="PNG")
     sentences_df["Ranks"] = scores
     sorted_df = sentences_df.sort_values(by='Ranks', ascending=False)
   # Select the top 20 sentences

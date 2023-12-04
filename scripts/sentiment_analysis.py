@@ -14,6 +14,9 @@ except LookupError:
 
 
 ESG_keywords = ["social", "global", "environmental", "ESG", "esg"]
+Risk_keywords = ["Risk, risks", "threats"]
+Goals_keywords = ["Goals", "objectives", "mission"]
+
 # Define a function that will check if any keyword is in the sentence
 def sentence_contains_keywords(sentence, keywords):
     return any(keyword in sentence.lower() for keyword in keywords)

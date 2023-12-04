@@ -11,8 +11,9 @@ def find_years(text):
 
     # Find all occurrences of the pattern in the text
     years = re.findall(year_pattern, text)
-
-    return years
+    count_dict = Counter(years)
+    year_of_report = max(count_dict, key=count_dict.get)
+    return year_of_report
 
     # Join the words using the specified operator
     return operator.join(words)

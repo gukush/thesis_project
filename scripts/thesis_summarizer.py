@@ -69,18 +69,18 @@ def RemoveStopWords(sentences_df, current_directory):
     standard_stopwords = stopwords.words('english')
     sentences = sentences_df['Tokenized Sentence']
 
-    #print(sentences)
-
     # Check if the file exists
     combined_stopword = standard_stopwords
-    try:
-        with open("./scripts/custom_stopwords.txt", 'r') as file:
-            lines = file.readlines()
-            lines = [line.strip() for line in lines]
-            #print("custom_stopwords", lines)
-            combined_stopword = lines
-            #print(combined_stopword)
-    except FileNotFoundError:
+    if 'custom_stopwords' in st.session_state:
+        combined_stopword = combined_stopword + st.session_state['custom_stopwords']
+    #try:
+    with open("/thesis_project/scripts/custom_stopwords.txt", 'r') as file:
+        lines = file.readlines()
+        lines = [line.strip() for line in lines]
+        #print("custom_stopwords", lines)
+        combined_stopword = combined_stopword + lines
+        print(combined_stopword)
+    # except FileNotFoundError:
         print(f"The file with custom stopword does not exist.")
         lines = []
 

@@ -16,7 +16,7 @@ def find_years(text):
     return year_of_report
 
     # Join the words using the specified operator
-    return operator.join(words)
+    #return operator.join(words)
 
 def get_company_name(text):
     extract_companies_name = r"\b[A-Z]\w+(?:\.com?)?(?:[ -]+(?:&[ -]+)?[A-Z]\w+(?:\.com?)?){0,2}[,\s]+(?i:ltd|llc|inc|plc|co(?:rp)?|group|holding|gmbh)\b"

@@ -48,8 +48,7 @@ def show_summary_results():
         st.write(st.session_state["summary_results"])
     else:
         st.write("Summary results not available.")
-
-    st.write(st.session_state["similarity_matrix"])
+        st.write(st.session_state["similarity_matrix"])
 
 # Function for the additional selection page
 def show_additional_selection():
@@ -74,28 +73,49 @@ def show_additional_selection():
         advanced_analysis = st.checkbox("Advanced Analysis")
         st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=20, step=1)
 
+        # Custom stopwords input
+        custom_stopwords = st.text_area("Enter custom stopwords (separated by commas)")
+        if custom_stopwords:
+            st.session_state['custom_stopwords'] = [word.strip() for word in custom_stopwords.split(',')]
+            # Button to clear stopwords
+        if st.button("Clear stopwords") and 'custom_stopwords' in st.session_state:
+            st.session_state['custom_stopwords'] = []
+            st.write("Custom stopwords have been cleared.")
     with col2:
         analyst = st.checkbox("Analyst")
         investor = st.checkbox("Investor")
         shareholder = st.checkbox("Shareholder")
 
+        st.write("Customize your output")
+
     with col3:
         st.session_state['whole_report'] = st.checkbox("Whole Report", False)
         st.session_state['num_start'] = st.number_input("Start from page (0-indexed)", min_value=0, value=0, step=1, key='start_page')
         st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=5, step=1, key='end_page')
-
+        # Custom keywords input
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        custom_keywords = st.text_area("Enter custom keywords (separated by commas)")
+        if custom_keywords:
+            st.session_state['custom_keywords'] = [word.strip() for word in custom_keywords.split(',')]
+        st.write(custom_keywords)
     # Processing the uploaded file (placeholder logic)
     if st.button('Run pipeline') and uploaded_file is not None:
         #st.write("File processing logic goes here.")
         st.session_state['uploaded_file'] = uploaded_file
         st.session_state['summary_results'] = process_report(uploaded_file, st.session_state['summary'], st.session_state['num_start'], st.session_state['num_end'], st.session_state['num_sentences'] )
         st.write("Your summary is ready. Visit summary tab to see it!")
+    elif uploaded_file is None:
+        st.write("Please add you file")
+
 
 def show_basic_analysis():
     st.title('Basic Analysis')
 
     if all((key in st.session_state) and (key is not None) for key in ('basic_analysis','uploaded_file','report_text')):# st.session_state['basic_analysis'] and st.session_state['uploaded_file']: // changed it because it crashes when file was not uploaded
         st.session_state['company_name'] = ed.get_company_name(st.session_state['report_text'])
+        st.session_state['report_year'] = ed.find_years(st.session_state['report_text'])
         #print(st.session_state['report_text'])
         st.write(st.session_state['company_name'])
         col1, col2 = st.columns(2)
@@ -103,7 +123,7 @@ def show_basic_analysis():
         with col1:
             st.subheader('Company Details')
             company = st.text_input('Company', st.session_state['company_name'])
-            year = st.number_input('Year', value=0000)
+            year = st.number_input('Year', st.session_state['report_year'])
             report_type = st.selectbox('Type', ['ANNUAL REPORT', 'FINANCIAL STATEMENT', 'OTHER'])
             industry = st.selectbox('Industry', ['INSURANCE', 'TECHNOLOGY', 'HEALTHCARE'])
             pages = st.number_input('Pages', value=st.session_state['report_page_count'])

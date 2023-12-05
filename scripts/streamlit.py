@@ -8,6 +8,7 @@ import sentiment_analysis as sa
 import pandas as pd
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+import io
 
 TEXTRANK_SUMMARY = 1
 BART_SUMMARY = 2
@@ -224,15 +225,16 @@ def show_table_extraction():
             report_data = st.session_state['uploaded_file'].getvalue()
             # TODO: make initialization once per session
             model_structure, model_detection, image_processor = tab.initializeTable()
-            csv_strings = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,
+            st.session_state['csv_strings'] = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,
                                                         num_start=st.session_state['num_start'],num_end=st.session_state['num_end'],
                                                         model_structure = model_structure, model_detection = model_detection,
                                                         image_processor = image_processor
                                                         )
             n_table = 0
-            for csv_string in csv_strings:
+            for i, csv_string in st.session_state['csv_strings']:
                 n_table = n_table + 1
-                st.write(csv_string)
+                st.write(f"Found on page {i}")
+                st.write(pd.read_csv(io.StringIO(csv_string)))
                 st.download_button(
                         "Download csv file",
                         csv_string,

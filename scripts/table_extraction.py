@@ -143,7 +143,7 @@ def TableExtractionFromStream(stream, keywords, model_detection, model_structure
         for table in tables:
             csv_string = io.StringIO()
             SimpleDumpCSV(csv_string,table)
-            csv_strings.append(csv_string.getvalue())
+            csv_strings.append((i,csv_string.getvalue())) # tuple of Page numbers as well as csv contents
             csv_string.close()
     return csv_strings
             

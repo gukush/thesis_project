@@ -3,3 +3,4 @@
 *.xlsx
 *.png
 scripts/__pycache__/
+*.pdf

@@ -84,7 +84,7 @@ def show_additional_selection():
     with col2:
         analyst = st.checkbox("Analyst")
         investor = st.checkbox("Investor")
-        shareholder = st.checkbox("Shareholder")
+        shareholder = st.checkbox("Stakeholder")
 
         st.write("Customize your output")
 

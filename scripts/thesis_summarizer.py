@@ -51,13 +51,19 @@ def importFileFromStream(stream, page_num_down = None, page_num_up = None):
     if page_num_up is None:
         page_num_up = page_count
     text = ""
+    sentences = []
+    page_numbers = []
     for i in range(page_num_down,page_num_up):
         page = doc[i]
         text_ = page.get_text("text")
         text += text_
         n = n + 1
-        #if n > 10:
-        #    break
+        sentences_page = sent_tokenize(text_)
+        for sentence in sentences_page:
+            sentences.append(sentence)
+            page_numbers.append(i+1)
+
+    st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
     #print(len(text))
     return text
 
@@ -117,7 +123,6 @@ def GetUniqueTokens(column):
     return unique_words_list
 
 def GetWordsNumber(column):
-    # flatening the column
     flattened_list = [word for row in column for word in row]
     word_num = len(flattened_list)
     return word_num
@@ -239,8 +244,7 @@ def extract_numerics_with_context(text, num_words_before=1):
     return results
 
 def step_by_step(text):
-    sentences = sent_tokenize(text)
-    sentences_df = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences})
+    sentences_df = st.session_state["sentences_df"].copy()
     sentences_df['Preprocessed Sentence'] = sentences_df['Preprocessed Sentence'].apply(CleanText)
 
     #we add each sentence as a version of word tokens
@@ -283,10 +287,10 @@ def step_by_step(text):
              # Calculate cosine similarity and assign it to the similarity matrix
               similarity_matrix[i, j] = cosine_similarity(tf_vector_i, tf_vector_j)
 
-    st.session_state['similarity_matrix'] = similarity_matrix
+    #st.session_state['similarity_matrix'] = similarity_matrix
     nx_graph = nx.from_numpy_array(similarity_matrix)
     #print(nx_graph)
-    scores = nx.pagerank(nx_graph, max_iter=2000, alpha=0.9,tol=1.6e-6)
+    scores = nx.pagerank(nx_graph, max_iter=2000, alpha=0.9, tol=1.6e-6)
     # Draw the graph
     #plt.figure(figsize=(10, 10))  # Set the size of the figure (optional)
     #nx.draw(nx_graph, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)
@@ -297,10 +301,12 @@ def step_by_step(text):
 
     # Save the graph to a file
     #plt.savefig("/thesis_project/examples/my_graph.png", format="PNG")
-    sentences_df["Ranks"] = scores
+    #sentences_df["Ranks"] = scores
+    sentences_df.loc[:, "Ranks"] = scores
     sorted_df = sentences_df.sort_values(by='Ranks', ascending=False)
   # Select the top 20 sentences
-    top_20_sentences = sorted_df.head(20)
-    return top_20_sentences
+    #top_sentences = sorted_df.head(st.session_state['num_sentences'])
+
+    return sorted_df
 
 

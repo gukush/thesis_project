@@ -26,9 +26,11 @@ def get_company_name(text):
     company_name = max(count_dict, key = count_dict.get)
     return company_name
 
-#st.session_state['company_name'] = get_company_name(st.session_state['bounded_report_text'])
-# report_data = st.session_state['uploaded_file'].getvalue()
-# name_of_the_report = st.session_state['uploaded_file'].name
-# number_of_pages = getPageNum(name_of_the_report)
-# text = st.session_state['report_text']
-# words_count = lengt
+def create_barchart():
+    if 'summary_results' in st.session_state and st.session_state['summary'] == 1:
+        ranks_df = st.session_state['summary_results'].copy()
+        ranks_sum = ranks_df.groupby('PDF Page Number')['Ranks'].mean()
+        sorted_ranks_sum = ranks_sum.sort_values(ascending=False)
+        sorted_ranks_dict = sorted_ranks_sum.to_dict()
+
+    return sorted_ranks_dict

@@ -24,6 +24,9 @@ def sentence_contains_keywords(sentence, keywords):
 
 #sentences_df = preprocessing()
 #TODO stemming of keywords
+#def extract_given_chapter(keyword_1, keyword_2):
+
+
 def extract_sentences_with_keywords(keywords, sentences_df):
     # Ensure keywords are lowercased for matching
     keywords = [keyword.lower() for keyword in keywords]

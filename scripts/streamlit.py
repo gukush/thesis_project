@@ -40,15 +40,6 @@ def show_main_content():
     st.header("Welcome in pipeline for extracting and summarizing data from business reports!")
     st.header("Please use the navigation panel to move through sections")
     st.header("To run the pipeline go to advanced selection panel, and configure your output")
-# Function for the summary results
-def show_summary_results():
-    st.header("Summary Results")
-    # Your summary results content here
-    if "summary_results" in st.session_state :
-        st.write(st.session_state["summary_results"])
-    else:
-        st.write("Summary results not available.")
-        st.write(st.session_state["similarity_matrix"])
 
 # Function for the additional selection page
 def show_additional_selection():
@@ -119,41 +110,47 @@ def show_basic_analysis():
         #print(st.session_state['report_text'])
         st.write(st.session_state['company_name'])
         col1, col2 = st.columns(2)
-
+        page_num_selected = st.session_state['num_end'] - st.session_state['num_start']
         with col1:
             st.subheader('Company Details')
             company = st.text_input('Company', st.session_state['company_name'])
-            year = st.number_input('Year', st.session_state['report_year'])
-            report_type = st.selectbox('Type', ['ANNUAL REPORT', 'FINANCIAL STATEMENT', 'OTHER'])
-            industry = st.selectbox('Industry', ['INSURANCE', 'TECHNOLOGY', 'HEALTHCARE'])
-            pages = st.number_input('Pages', value=st.session_state['report_page_count'])
-            avg_words = st.number_input('Average Words per Page', value= st.session_state['Word_count']/st.session_state['report_page_count'])
-            reading_time = st.number_input('Reading Time', value = st.session_state['Word_count']/250)
-            sentences = st.number_input('Number of Sentences', value=len(st.session_state['preprocessed_df']))
+            year = st.text_input('Year', st.session_state['report_year'])
+            report_type = st.selectbox('Type', ['Annual report', '10-K report', 'OTHER'])
+            #industry = st.selectbox('Industry', ['INSURANCE', 'TECHNOLOGY', 'HEALTHCARE'])
+            pages_whole = st.number_input('Pages (whole report)', value=st.session_state['report_page_count'])
+            if(st.session_state['whole_report'] == False):
+                pages_selected = st.number_input('Pages (selected part)', value=page_num_selected)
+            avg_words = st.number_input('Average Words per Page (selected part)', value= st.session_state['Word_count']/page_num_selected)
+            sentences = st.number_input('Number of Sentences (in the selected part)', value=len(st.session_state['preprocessed_df']))
+            reading_time = st.number_input('Reading Time (in minutes)', value = st.session_state['Word_count']/250)
+
 
         # You can add functionality to process and update these details as needed.
         with col2:
             st.subheader('Key Word Analysis of the Report')
-
-            # Assuming you have the keywords and their frequencies
-            #keywords = ['fun', 'easy', 'inclusive', 'share', 'software', 'live', 'beautiful', 'reflection', 'thoughts',
-            #            'interactive', 'brainstorm', 'knowledge', 'ideas', 'ice breaker']
-           # frequencies = [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1]
-
-            tf_wordloud = st.session_state['tf_wordcloud']
-            st.write(tf_wordloud)
-            wordcloud = WordCloud(width=800, height=400).generate_from_frequencies(tf_wordloud)
+            tf_wordcloud = st.session_state['tf_wordcloud']
+            wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(tf_wordcloud)
             plt.figure(figsize=(10, 5))
             plt.imshow(wordcloud, interpolation='bilinear')
             plt.axis('off')
             st.pyplot(plt)
 
-            # For the bar chart, assuming you have the data
-            data = pd.Series([0.2, 0.15, 0.10, 0.05, 0.03, 0.02, 0.01, 0.005, 0.003],
-                             index=[1, 2, 3, 4, 5, 6, 7, 8, 9])
-            #st.bar_chart(data)
+            #Barchart with most important pages from summary
+            st.subheader("Most important PDF pages in a given page set")
+            data = ed.create_barchart()
+            st.bar_chart(data)
     else:
         st.write("Please upload file in \"Additional selection\" page and then run the pipeline!")
+
+# Function for the summary results
+def show_summary_results():
+    st.header("Summary Results")
+    # Your summary results content here
+    if "summary_results" in st.session_state :
+        st.write(st.session_state["summary_results"].head(st.session_state['num_sentences']))
+    else:
+        st.write("Summary results not available.")
+        #st.write(st.session_state["similarity_matrix"])
 
 def show_advanced_analysis():
     # Advanced Analysis Tab Content

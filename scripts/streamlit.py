@@ -72,12 +72,12 @@ def show_additional_selection():
         if st.button("Clear stopwords") and 'custom_stopwords' in st.session_state:
             st.session_state['custom_stopwords'] = []
             st.write("Custom stopwords have been cleared.")
-    with col2:
-        analyst = st.checkbox("Analyst")
-        investor = st.checkbox("Investor")
-        shareholder = st.checkbox("Stakeholder")
+    # with col2:
+    #     analyst = st.checkbox("Analyst")
+    #     investor = st.checkbox("Investor")
+    #     shareholder = st.checkbox("Stakeholder")
 
-        st.write("Customize your output")
+       #st.write("Customize your output")
 
     with col3:
         st.session_state['whole_report'] = st.checkbox("Whole Report", False)
@@ -86,11 +86,14 @@ def show_additional_selection():
         # Custom keywords input
         st.write("\n\n")
         st.write("\n\n")
-        st.write("\n\n")
+        #st.write("\n\n")
         custom_keywords = st.text_area("Enter custom keywords (separated by commas)")
         if custom_keywords:
             st.session_state['custom_keywords'] = [word.strip() for word in custom_keywords.split(',')]
-        st.write(custom_keywords)
+            st.write(custom_keywords)
+        if st.button("Clear keywords") and 'custom_keywords' in st.session_state:
+            st.session_state['custom_keywords'] = []
+            st.write("Custom keywords have been cleared.")
     # Processing the uploaded file (placeholder logic)
     if st.button('Run pipeline') and uploaded_file is not None:
         #st.write("File processing logic goes here.")

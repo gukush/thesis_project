@@ -243,6 +243,28 @@ def extract_numerics_with_context(text, num_words_before=1):
 
     return results
 
+def PersonalizeTextRank(sentences_df, stemmer, increase_factor=5):
+    keywords = st.session_state['custom_keywords']
+    print(keywords)
+    stemmed_keywords = [stemmer.stem(word) for word in keywords]
+    def count_keywords(sentence):
+        return sum(word in stemmed_keywords for word in sentence)
+    sentences_df["Keyword Count"] = sentences_df['Stemmed Words'].apply(count_keywords)
+
+    #increase_factor = 5
+    personalization_vector = {}
+    for _, row in sentences_df.iterrows():
+        node_id = row['ID']
+        keyword_count = row['Keyword Count']
+        importance = increase_factor ** keyword_count
+        personalization_vector[node_id] = importance
+
+    # Normalize the personalization vector
+    total_importance = sum(personalization_vector.values())
+    for node in personalization_vector:
+        personalization_vector[node] /= total_importance
+    return personalization_vector
+
 def step_by_step(text):
     sentences_df = st.session_state["sentences_df"].copy()
     sentences_df['Preprocessed Sentence'] = sentences_df['Preprocessed Sentence'].apply(CleanText)
@@ -290,7 +312,33 @@ def step_by_step(text):
     #st.session_state['similarity_matrix'] = similarity_matrix
     nx_graph = nx.from_numpy_array(similarity_matrix)
     #print(nx_graph)
-    scores = nx.pagerank(nx_graph, max_iter=2000, alpha=0.9, tol=1.6e-6)
+    #baisc cae without personalization
+    if 'custom_keywords' in st.session_state:
+        # print("personalized summary")
+        # ai_nodes = [1,2,3,7, 22, 28]
+        # total_nodes = len(nx_graph.nodes())
+        # base_importance = 1 / total_nodes
+        # increase_factor = 5
+        # personalization_vector = {node: base_importance for node in nx_graph.nodes()}
+        # # Increase importance for AI nodes
+        # for ai_node in ai_nodes:
+        #     personalization_vector[ai_node] *= increase_factor
+        #     # Normalize the personalization vector
+        # total_importance = sum(personalization_vector.values())
+        # print(total_importance)
+        # print(personalization_vector)
+        # for node in personalization_vector:
+        #     personalization_vector[node] /= total_importance
+        # print(personalization_vector)
+        # total_importance = sum(personalization_vector.values())
+        # print(personalization_vector)
+        personalization_vector = PersonalizeTextRank(sentences_df, stemmer)
+        scores = nx.pagerank(nx_graph, max_iter=2000, alpha=0.9, tol=1.6e-6, personalization=personalization_vector)
+    else:
+        scores = nx.pagerank(nx_graph, max_iter=2000, alpha=0.9, tol=1.6e-6)
+
+
+
     # Draw the graph
     #plt.figure(figsize=(10, 10))  # Set the size of the figure (optional)
     #nx.draw(nx_graph, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)

@@ -39,7 +39,7 @@ def plot_results(pil_img, scores, labels, boxes,table_desc, filename, model,stru
             text = f'{model.config.id2label[label]}: {score:0.2f}'
             ax.text(xmin, ymin, text, fontsize=15,
                 bbox=dict(facecolor='yellow', alpha=0.5))
-        elif model.config.id2label[label] == "table":
+        elif not structure and model.config.id2label[label] == "table":
             ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                                    fill=False, color=c, linewidth=3))
             text = f'{model.config.id2label[label]}: {score:0.2f}'
@@ -198,7 +198,9 @@ if __name__ == "__main__":
         cnt_table = 0
         for page in doc:
             i = i + 1 
-            if i in range(entry['Start'],entry['Stop']):
+            if os.path.isfile(f"../images/{basename}_page_{page.number}.png"):
+                print(f"Following page was already extracted: {page.number} in {basename}")
+            elif i in range(entry['Start'],entry['Stop']):
                 print(f"{basename}, page {i}")
                 page_text = page.get_text("text")
                 #extract = any(keyword.lower() in page_text.lower() for keyword in keywords)

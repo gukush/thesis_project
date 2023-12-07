@@ -16,12 +16,31 @@ ERROR_SUMMARY = 3
 
 front.generate_custom_styles()
 
+# def process_report(uploaded_file, summary_type, num_start, num_end, num_sentences):
+#     if uploaded_file is None:
+#         return "Please upload a report"
+#     else:
+#         report_data = uploaded_file.getvalue()
+#         st.session_state["report_text"] = th.importFileFromStream(report_data)
+#         bounded_report_text = th.importFileFromStream(report_data, num_start, num_end)
+#         st.session_state["bounded_report_text"] = bounded_report_text
+#
+#         if summary_type == TEXTRANK_SUMMARY:
+#             top20 = th.step_by_step(bounded_report_text)
+#             return top20
+#         elif summary_type == BART_SUMMARY:
+#             import bart_summarizer
+#             report_summary = bart_summarizer.abstractive(bounded_report_text, num_sentences)
+#             return report_summary
+#         else:
+#             return "Invalid summary type"
+
 def process_report(uploaded_file, summary_type, num_start, num_end, num_sentences):
     if uploaded_file is None:
         return "Please upload a report"
     else:
-        report_data = uploaded_file.getvalue()
-        st.session_state["report_text"] = th.importFileFromStream(report_data)
+        report_data = uploaded_file
+        #st.session_state["report_text"] = th.importFileFromStream(report_data)
         bounded_report_text = th.importFileFromStream(report_data, num_start, num_end)
         st.session_state["bounded_report_text"] = bounded_report_text
 
@@ -47,7 +66,8 @@ def show_additional_selection():
     st.header("Additional Selection")
 
     # File uploader
-    uploaded_file = st.file_uploader("Test upload")
+    #uploaded_file = st.file_uploader("Test upload")
+    uploaded_file = st.text_input("Test upload")
 
     # Input fields and variable/s
     col1, col2, col3 = st.columns(3)
@@ -63,7 +83,7 @@ def show_additional_selection():
         #extractive_summary = st.checkbox("Extractive Summary")
         st.session_state['basic_analysis'] = st.checkbox("Basic Analysis", True)
         advanced_analysis = st.checkbox("Advanced Analysis")
-        st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=20, step=1)
+        st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=6, step=1)
 
         # Custom stopwords input
         custom_stopwords = st.text_area("Enter custom stopwords (separated by commas)")
@@ -150,8 +170,11 @@ def show_basic_analysis():
 def show_summary_results():
     st.header("Summary Results")
     # Your summary results content here
-    if "summary_results" in st.session_state :
+    if "summary_results" in st.session_state and st.session_state['summary'] == TEXTRANK_SUMMARY :
         st.write(st.session_state["summary_results"].head(st.session_state['num_sentences']))
+        st.write(th.print_Text_Rank_as_text(st.session_state["summary_results"].head(st.session_state['num_sentences'])))
+    elif "summary_results" in st.session_state and st.session_state['summary'] == BART_SUMMARY:
+        st.write(st.session_state["summary_results"])
     else:
         st.write("Summary results not available.")
         #st.write(st.session_state["similarity_matrix"])
@@ -179,7 +202,7 @@ def show_advanced_analysis():
         st.markdown(color_html, unsafe_allow_html=True)
         # Display the color indicator
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    #st.markdown('</div>', unsafe_allow_html=True)
 
     # Goals and Objectives Section
     with col2:
@@ -252,10 +275,10 @@ app_mode = st.sidebar.radio("Choose the Page",
 # Page routing based on sidebar selection
 if app_mode == "Main Page":
     show_main_content()
-elif app_mode == "Summary Results":
-    show_summary_results()
 elif app_mode == "Additional Selection":
     show_additional_selection()
+elif app_mode == "Summary Results":
+    show_summary_results()
 elif app_mode == "Basic analysis":
     show_basic_analysis()
 elif app_mode == "Advanced Analysis":

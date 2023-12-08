@@ -41,31 +41,50 @@ import ast
 #     return text
 
 def importFileFromStream(stream, page_num_down = None, page_num_up = None):
-    doc = fitz.Document(stream=stream)
-    page_count = doc.page_count
-    st.session_state['report_page_count'] = page_count
-    text = ""
-    n = 0 # artificially created limit, to remove when we will want to process full pdf
-    if page_num_down is None:
-        page_num_down = 0
-    if page_num_up is None:
-        page_num_up = page_count
-    text = ""
+    #doc = fitz.Document(stream=stream)
+    #page_count = doc.page_count
+    #st.session_state['report_page_count'] = page_count
+    text = stream
     sentences = []
     page_numbers = []
-    for i in range(page_num_down,page_num_up):
-        page = doc[i]
-        text_ = page.get_text("text")
-        text += text_
-        n = n + 1
-        sentences_page = sent_tokenize(text_)
-        for sentence in sentences_page:
-            sentences.append(sentence)
-            page_numbers.append(i+1)
+
+
+    sentences_page = sent_tokenize(text)
+    for sentence in sentences_page:
+        sentences.append(sentence)
+        page_numbers.append(1)
 
     st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
     #print(len(text))
     return text
+
+# def importFileFromStream(stream, page_num_down = None, page_num_up = None):
+#     doc = fitz.Document(stream=stream)
+#     page_count = doc.page_count
+#     st.session_state['report_page_count'] = page_count
+#     text = ""
+#     n = 0 # artificially created limit, to remove when we will want to process full pdf
+#     if page_num_down is None:
+#         page_num_down = 0
+#     if page_num_up is None:
+#         page_num_up = page_count
+#     text = ""
+#     sentences = []
+#     page_numbers = []
+#     for i in range(page_num_down,page_num_up):
+#         page = doc[i]
+#         text_ = page.get_text("text")
+#         text += text_
+#         n = n + 1
+#         sentences_page = sent_tokenize(text_)
+#         for sentence in sentences_page:
+#             sentences.append(sentence)
+#             page_numbers.append(i+1)
+#
+#     st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
+#     #print(len(text))
+#     return text
+
 
 def splitTextIntoSentences(text):
     sentences = text.split(". ")
@@ -264,6 +283,15 @@ def PersonalizeTextRank(sentences_df, stemmer, increase_factor=5):
     for node in personalization_vector:
         personalization_vector[node] /= total_importance
     return personalization_vector
+
+def print_Text_Rank_as_text(sentences_df, column_name="Original Sentence"):
+    # Flatten the column values
+    flattened_values = sentences_df[column_name].explode()
+
+    # Convert the flattened values to a string
+    text_output = ' '.join(map(str, flattened_values))
+
+    return text_output
 
 def step_by_step(text):
     sentences_df = st.session_state["sentences_df"].copy()

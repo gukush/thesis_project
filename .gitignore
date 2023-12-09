@@ -4,6 +4,6 @@
 *.png
 scripts/__pycache__/
 *.pdf
-jre-*
+jre*
 *.txt
 SummEval/

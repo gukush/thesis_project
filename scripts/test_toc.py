@@ -110,7 +110,7 @@ if __name__ == "__main__":
         full_path = dir_path+filename
         doc = fitz.open(full_path)
         toc = find_best_candidate(doc,x_tolerance,y_tolerance)
-        toc_list.append((filename,toc[0]+1)) # account for 0-indexing
+        toc_list.append((filename,toc[0]+1,toc[4])) # account for 0-indexing
         print(f"Page number: {toc[0]}")
         print(f"Column at x={toc[1]}:")
         print("Sorted Numbers:", toc[2])
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 #toc_candidate = find_best_candidate(doc, x_tolerance, y_tolerance)
 with open('toc_pred.csv','w') as out:
     csv_out = csv.writer(out)
-    csv_out.writerow(['filename','page_pred'])
+    csv_out.writerow(['filename','page_pred','score'])
     csv_out.writerows(toc_list)
 
 

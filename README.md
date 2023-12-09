@@ -11,7 +11,7 @@ docker run -p 8501:8501 \
 --mount type=bind,source="$(pwd)",target=/thesis_project \
 thesis_project
 ```
-The "--mount" option is responsible for sharing directories between docker container and the host system, so that changes made to this repository locally will be updated inside the container too. Instead of the "$(pwd)" part one can insert the path to this repository.
+The "--mount" option is responsible for sharing directories between docker container and the host system, so that changes made to this repository locally will be updated inside the container too. Instead of the "$(pwd)" part one can insert the directory path to this repository.
 
 After running on address http://0.0.0.0:8501/ ( http://localhost:8501 on Windows ) there will simple page created in streamlit to help prototype the solution. If not already enabled, please check the "Run on Save" option in page's setting to allow changes to instantly update after saves.
 

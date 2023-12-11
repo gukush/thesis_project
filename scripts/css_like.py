@@ -44,3 +44,14 @@ def get_slider_color(value):
             return "green"
 
 
+css_style = """
+    <style>
+        .css-2trqyj, button.css-2trqyj  {
+            padding: 0.25rem 0.5rem;  /* Smaller padding */
+            margin: 5.125rem;  /* Reduced margin */
+            font-size: 5.875rem;  /* Smaller font size */
+        }
+    </style>
+"""
+
+

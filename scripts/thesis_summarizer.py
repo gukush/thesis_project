@@ -2,6 +2,7 @@ import fitz
 import streamlit as st
 import numpy as np
 import pandas as pd
+import test_toc as toc
 import matplotlib.pyplot as plt
 
 import nltk
@@ -40,50 +41,56 @@ import ast
 #             text += text_
 #     return text
 
-def importFileFromStream(stream, page_num_down = None, page_num_up = None):
-    #doc = fitz.Document(stream=stream)
-    #page_count = doc.page_count
-    #st.session_state['report_page_count'] = page_count
-    text = stream
-    sentences = []
-    page_numbers = []
-
-
-    sentences_page = sent_tokenize(text)
-    for sentence in sentences_page:
-        sentences.append(sentence)
-        page_numbers.append(1)
-
-    st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
-    #print(len(text))
-    return text
-
 # def importFileFromStream(stream, page_num_down = None, page_num_up = None):
-#     doc = fitz.Document(stream=stream)
-#     page_count = doc.page_count
-#     st.session_state['report_page_count'] = page_count
-#     text = ""
-#     n = 0 # artificially created limit, to remove when we will want to process full pdf
-#     if page_num_down is None:
-#         page_num_down = 0
-#     if page_num_up is None:
-#         page_num_up = page_count
-#     text = ""
+#     #doc = fitz.Document(stream=stream)
+#     #page_count = doc.page_count
+#     #st.session_state['report_page_count'] = page_count
+#     text = stream
 #     sentences = []
 #     page_numbers = []
-#     for i in range(page_num_down,page_num_up):
-#         page = doc[i]
-#         text_ = page.get_text("text")
-#         text += text_
-#         n = n + 1
-#         sentences_page = sent_tokenize(text_)
-#         for sentence in sentences_page:
-#             sentences.append(sentence)
-#             page_numbers.append(i+1)
+#
+#
+#     sentences_page = sent_tokenize(text)
+#     for sentence in sentences_page:
+#         sentences.append(sentence)
+#         page_numbers.append(1)
 #
 #     st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
 #     #print(len(text))
 #     return text
+
+def importFileFromStream(stream, page_num_down = None, page_num_up = None):
+    doc = fitz.Document(stream=stream)
+    toc_ = toc.find_best_candidate(doc)
+    #add table of contents varible
+    st.session_state["toc"] = toc.get_toc_df(toc_)
+    #st.write(toc_)
+    page_count = doc.page_count
+    st.session_state['report_page_count'] = page_count
+    text = ""
+    n = 0 # artificially created limit, to remove when we will want to process full pdf
+    print(page_num_down, ":", page_num_up)
+    if page_num_down is None:
+        page_num_down = 0
+    if page_num_up is None:
+        page_num_up = page_count
+    text = ""
+    sentences = []
+    page_numbers = []
+
+    for i in range(page_num_down,page_num_up):
+        page = doc[i]
+        text_ = page.get_text("text")
+        text += text_
+        n = n + 1
+        sentences_page = sent_tokenize(text_)
+        for sentence in sentences_page:
+            sentences.append(sentence)
+            page_numbers.append(i+1)
+
+    st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
+    #print(len(text))
+    return text
 
 
 def splitTextIntoSentences(text):

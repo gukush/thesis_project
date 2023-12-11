@@ -26,6 +26,9 @@ def get_company_name(text):
     company_name = max(count_dict, key = count_dict.get)
     return company_name
 
+def get_report_type(text):
+    annual_report = ["annual report", "Annual Report", "financial statement", "financial statement"]
+
 def create_barchart():
     if 'summary_results' in st.session_state and st.session_state['summary'] == 1:
         ranks_df = st.session_state['summary_results'].copy()

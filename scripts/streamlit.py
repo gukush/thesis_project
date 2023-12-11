@@ -5,6 +5,7 @@ import thesis_summarizer as th
 import extracting_data as ed
 import css_like as front
 import sentiment_analysis as sa
+import test_toc as toc
 import pandas as pd
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
@@ -16,31 +17,12 @@ ERROR_SUMMARY = 3
 
 front.generate_custom_styles()
 
-# def process_report(uploaded_file, summary_type, num_start, num_end, num_sentences):
-#     if uploaded_file is None:
-#         return "Please upload a report"
-#     else:
-#         report_data = uploaded_file.getvalue()
-#         st.session_state["report_text"] = th.importFileFromStream(report_data)
-#         bounded_report_text = th.importFileFromStream(report_data, num_start, num_end)
-#         st.session_state["bounded_report_text"] = bounded_report_text
-#
-#         if summary_type == TEXTRANK_SUMMARY:
-#             top20 = th.step_by_step(bounded_report_text)
-#             return top20
-#         elif summary_type == BART_SUMMARY:
-#             import bart_summarizer
-#             report_summary = bart_summarizer.abstractive(bounded_report_text, num_sentences)
-#             return report_summary
-#         else:
-#             return "Invalid summary type"
-
 def process_report(uploaded_file, summary_type, num_start, num_end, num_sentences):
     if uploaded_file is None:
         return "Please upload a report"
     else:
-        report_data = uploaded_file
-        #st.session_state["report_text"] = th.importFileFromStream(report_data)
+        report_data = uploaded_file.getvalue()
+        st.session_state["report_text"] = th.importFileFromStream(report_data)
         bounded_report_text = th.importFileFromStream(report_data, num_start, num_end)
         st.session_state["bounded_report_text"] = bounded_report_text
 
@@ -54,6 +36,25 @@ def process_report(uploaded_file, summary_type, num_start, num_end, num_sentence
         else:
             return "Invalid summary type"
 
+# def process_report(uploaded_file, summary_type, num_start, num_end, num_sentences):
+#     if uploaded_file is None:
+#         return "Please upload a report"
+#     else:
+#         report_data = uploaded_file
+#         #st.session_state["report_text"] = th.importFileFromStream(report_data)
+#         bounded_report_text = th.importFileFromStream(report_data, num_start, num_end)
+#         st.session_state["bounded_report_text"] = bounded_report_text
+#
+#         if summary_type == TEXTRANK_SUMMARY:
+#             top20 = th.step_by_step(bounded_report_text)
+#             return top20
+#         elif summary_type == BART_SUMMARY:
+#             import bart_summarizer
+#             report_summary = bart_summarizer.abstractive(bounded_report_text, num_sentences)
+#             return report_summary
+#         else:
+#             return "Invalid summary type"
+
 
 # Function for the main content
 def show_main_content():
@@ -61,16 +62,49 @@ def show_main_content():
     st.header("Please use the navigation panel to move through sections")
     st.header("To run the pipeline go to advanced selection panel, and configure your output")
 
+
+# def update_selected_pages(index):
+#     st.session_state['num_start'] = st.session_state["toc"].iloc[index, "PDF index"]
+#     end_page= st.session_state["toc"].iloc[index + 1, "PDF index"] if index + 1 < len(st.session_state["toc"]) else None
+#     st.session_state['num_end'] = end_page - 1
+
+def update_selected_pages(index):
+    st.session_state['num_start'] = st.session_state["toc"].iloc[index]['PDF index']
+    st.session_state['num_end'] = st.session_state["toc"].iloc[index + 1]['PDF index'] if index + 1 < len(st.session_state["toc"]) else None
+    if st.session_state['num_start'] == st.session_state['num_end']:
+        st.session_state['num_end'] += 1
+
 # Function for the additional selection page
 def show_additional_selection():
     st.header("Additional Selection")
 
     # File uploader
-    #uploaded_file = st.file_uploader("Test upload")
-    uploaded_file = st.text_input("Test upload")
+    uploaded_file = st.file_uploader("Upload your report")
+
+    #if "toc" in st.session_state:
+        #st.write(st.session_state["toc"])
+    if uploaded_file is not None:
+        #st.write("plik jest")
+        doc = fitz.Document(stream=uploaded_file.getvalue())
+        best_candidate = toc.find_best_candidate(doc)
+        st.session_state["toc"] = toc.get_toc_df(best_candidate)
+        # Create a list of chapter names for the dropdown
+        #chapter_names = st.session_state["toc"]["Chapter name"].tolist()
+        chapter_names = st.session_state["toc"].apply(
+            lambda row: f'{row["Chapter name"]} - {row["Chapter page"]}', axis=1).tolist()
+        print(chapter_names)
+        # Create a dropdown (select box) for chapter names
+        st.session_state["selected_chapter"] = st.selectbox("Select a chapter", chapter_names)
+
+        # Find the index of the selected chapter
+        selected_index = chapter_names.index(st.session_state["selected_chapter"])
+        update_selected_pages(selected_index)
+        st.write(
+            f"Selected Page Start: {st.session_state['num_start']}, Selected Page End: {st.session_state['num_end']}")
+
 
     # Input fields and variable/s
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     with col1:
         option = st.selectbox('Choose type of summarization',('Extractive (textrank)','Abstractive (BART)'),index=0)
@@ -85,6 +119,7 @@ def show_additional_selection():
         advanced_analysis = st.checkbox("Advanced Analysis")
         st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=6, step=1)
 
+
         # Custom stopwords input
         custom_stopwords = st.text_area("Enter custom stopwords (separated by commas)")
         if custom_stopwords:
@@ -93,17 +128,14 @@ def show_additional_selection():
         if st.button("Clear stopwords") and 'custom_stopwords' in st.session_state:
             st.session_state['custom_stopwords'] = []
             st.write("Custom stopwords have been cleared.")
-    # with col2:
-    #     analyst = st.checkbox("Analyst")
-    #     investor = st.checkbox("Investor")
-    #     shareholder = st.checkbox("Stakeholder")
 
-       #st.write("Customize your output")
 
-    with col3:
+    with col2:
         st.session_state['whole_report'] = st.checkbox("Whole Report", False)
-        st.session_state['num_start'] = st.number_input("Start from page (0-indexed)", min_value=0, value=0, step=1, key='start_page')
-        st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=5, step=1, key='end_page')
+        # if st.button ("Custom page"):
+        #     st.session_state['num_start'] = st.number_input("Start from page (0-indexed)", min_value=0, value=0, step=1, key='start_page')
+        #     st.session_state['num_end'] = st.number_input("End at page (0-indexed)", min_value=0, value=5, step=1, key='end_page')
+
         # Custom keywords input
         st.write("\n\n")
         st.write("\n\n")
@@ -131,7 +163,6 @@ def show_basic_analysis():
     if all((key in st.session_state) and (key is not None) for key in ('basic_analysis','uploaded_file','report_text')):# st.session_state['basic_analysis'] and st.session_state['uploaded_file']: // changed it because it crashes when file was not uploaded
         st.session_state['company_name'] = ed.get_company_name(st.session_state['report_text'])
         st.session_state['report_year'] = ed.find_years(st.session_state['report_text'])
-        #print(st.session_state['report_text'])
         st.write(st.session_state['company_name'])
         col1, col2 = st.columns(2)
         page_num_selected = st.session_state['num_end'] - st.session_state['num_start']

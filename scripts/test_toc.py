@@ -10,7 +10,7 @@ import csv
 import io
 import re
 
-def is_number(s):
+ozdzdef is_number(s):
     try:
         float(s)
         return True
@@ -53,7 +53,6 @@ def extract_columns(page, x_tolerance=10,y_tolerance=5):
             # Extracting sorted numbers and checking if they are in increasing order
             sorted_numbers = [num for num, _ in nums]
             is_increasing = all(sorted_numbers[i] <= sorted_numbers[i + 1] for i in range(len(sorted_numbers) - 1))
-            #is_increasing = is_increasing & (sorted_numbers[-1] > sorted_numbers[0])
 
             # Extracting text in the same horizontal row
             extracted_text = []
@@ -70,59 +69,48 @@ def extract_columns(page, x_tolerance=10,y_tolerance=5):
 
     return results
 
-
-def get_toc_score(page,doc_page_count,x_tolerance=10,y_tolerance=5):
-    keywords = {'table':5, 'content':10, 'table of content':10}
-    results = extract_columns(page, x_tolerance, y_tolerance)
-    best_score = 0
-    best_candidate = (None,None,None,-1)
-    for x, sorted_numbers, is_increasing, row_texts in results:
-        # Score based on column length and alignment with page length
-        if sorted_numbers and is_increasing:
-            page_text = page.get_text().lower()
-            length_score = len(sorted_numbers)*0.6
-            #placement_score = 8/(page.number+1)
-            page_count_score = 8/(abs(sorted_numbers[-1]-doc_page_count)+1) # how close to the end of doc the potential ToC ends
-            #begin_score = 8/(abs(sorted_numbers[0])+1) # how close begining page is to begining of doc
-            # Check for keywords in the texts
-            keyword_score = sum( value for key, value in keywords.items() if key in page_text)
-            score = length_score + page_count_score + keyword_score# + placement_score
-            if score > best_score:
-                best_score = score
-                best_candidate = (x, sorted_numbers, row_texts, score)
-    return best_candidate
-
-
-
 def find_best_candidate(doc, x_tolerance=10, y_tolerance=5):
     best_score = 0
     best_candidate = None
-    
+    keywords = {'table':5, 'content':10, 'table of content':10}
     for page in doc:
         if page.number > doc.page_count/2: # we assume there is no ToC in second half of doc
             break
-        (x, sorted_numbers, row_texts, score) = get_toc_score(page,x_tolerance,y_tolerance)
-        if score > best_score:
-            best_score = score
-            best_candidate = (page.number, x, sorted_numbers, row_texts, score)
+        results = extract_columns(page, x_tolerance, y_tolerance)
+        for x, sorted_numbers, is_increasing, row_texts in results:
+            # Score based on column length and alignment with page length
+            if sorted_numbers and is_increasing:
+                page_text = page.get_text().lower()
+                length_score = len(sorted_numbers)
+                placement_score = 10/(page.number+1)
+                page_count_score = 8/(abs(sorted_numbers[-1]-doc.page_count)+1) # how close to the end of doc the potential ToC ends
+                begin_score = 8/(abs(sorted_numbers[0])+1) # how close begining page is to begining of doc
+                # Check for keywords in the texts
+                keyword_score = sum( value for key, value in keywords.items() if key in page_text)
+
+                score = length_score + page_count_score + keyword_score
+
+                if score > best_score:
+                    best_score = score
+                    best_candidate = (page.number, x, sorted_numbers, row_texts, score)
+
     return best_candidate
 
 # Usage
 #file_path = '../examples/Alphabet_2022.pdf'
-
+dir_path = "../examples/"
+directory = os.fsencode(dir_path)
+toc_list = []
+x_tolerance = 17 
+y_tolerance = 5
  # Adjust as needed based on your document's layout
 if __name__ == "__main__":
-    dir_path = "../examples/"
-    directory = os.fsencode(dir_path)
-    toc_list = []
-    x_tolerance = 17 
-    y_tolerance = 5
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
         full_path = dir_path+filename
         doc = fitz.open(full_path)
         toc = find_best_candidate(doc,x_tolerance,y_tolerance)
-        toc_list.append((filename,toc[0]+1,toc[4])) # account for 0-indexing
+        toc_list.append((filename,toc[0]+1)) # account for 0-indexing
         print(f"Page number: {toc[0]}")
         print(f"Column at x={toc[1]}:")
         print("Sorted Numbers:", toc[2])
@@ -131,11 +119,11 @@ if __name__ == "__main__":
         print("\n")
         doc.close()
 
-    #toc_candidate = find_best_candidate(doc, x_tolerance, y_tolerance)
-    #with open('toc_pred.csv','w') as out:
-    #    csv_out = csv.writer(out)
-    #    csv_out.writerow(['filename','page_pred','score'])
-    #    csv_out.writerows(toc_list)
+#toc_candidate = find_best_candidate(doc, x_tolerance, y_tolerance)
+with open('toc_pred.csv','w') as out:
+    csv_out = csv.writer(out)
+    csv_out.writerow(['filename','page_pred'])
+    csv_out.writerows(toc_list)
 
 
 

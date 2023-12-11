@@ -3,6 +3,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import test_toc as toc
+import extracting_data as et
 import matplotlib.pyplot as plt
 
 import nltk
@@ -89,7 +90,7 @@ def importFileFromStream(stream, page_num_down = None, page_num_up = None):
             page_numbers.append(i+1)
 
     st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
-    #print(len(text))
+    st.session_state['report type'] = et.count_report_bigrams(text)
     return text
 
 

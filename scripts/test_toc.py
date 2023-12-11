@@ -9,8 +9,9 @@ import argparse
 import csv
 import io
 import re
+import pandas as pd
 
-ozdzdef is_number(s):
+def is_number(s):
     try:
         float(s)
         return True
@@ -95,6 +96,19 @@ def find_best_candidate(doc, x_tolerance=10, y_tolerance=5):
                     best_candidate = (page.number, x, sorted_numbers, row_texts, score)
 
     return best_candidate
+
+def get_toc_df(best_candidate):
+    page_of_toc = best_candidate[0]
+    chapter_page = [int(item) for item in best_candidate[2]]
+    chapter_names = best_candidate[3]
+
+    df = pd.DataFrame(data = {'Chapter name':chapter_names,
+                              'Chapter page':chapter_page
+                              })
+    df["PDF index"] = df["Chapter page"] + page_of_toc
+
+    print(df)
+    return df
 
 # Usage
 #file_path = '../examples/Alphabet_2022.pdf'

@@ -163,20 +163,20 @@ def show_basic_analysis():
     if all((key in st.session_state) and (key is not None) for key in ('basic_analysis','uploaded_file','report_text')):# st.session_state['basic_analysis'] and st.session_state['uploaded_file']: // changed it because it crashes when file was not uploaded
         st.session_state['company_name'] = ed.get_company_name(st.session_state['report_text'])
         st.session_state['report_year'] = ed.find_years(st.session_state['report_text'])
-        st.write(st.session_state['company_name'])
+        #st.write(st.session_state['company_name'])
         col1, col2 = st.columns(2)
         page_num_selected = st.session_state['num_end'] - st.session_state['num_start']
         with col1:
             st.subheader('Company Details')
             company = st.text_input('Company', st.session_state['company_name'])
             year = st.text_input('Year', st.session_state['report_year'])
-            report_type = st.selectbox('Type', ['Annual report', '10-K report', 'OTHER'])
-            #industry = st.selectbox('Industry', ['INSURANCE', 'TECHNOLOGY', 'HEALTHCARE'])
+            report_type = st.text_input('Type', st.session_state['report type'])
             pages_whole = st.number_input('Pages (whole report)', value=st.session_state['report_page_count'])
             if(st.session_state['whole_report'] == False):
                 pages_selected = st.number_input('Pages (selected part)', value=page_num_selected)
             avg_words = st.number_input('Average Words per Page (selected part)', value= st.session_state['Word_count']/page_num_selected)
             sentences = st.number_input('Number of Sentences (in the selected part)', value=len(st.session_state['preprocessed_df']))
+            #250 is an average reading speed for an adult
             reading_time = st.number_input('Reading Time (in minutes)', value = st.session_state['Word_count']/250)
 
 
@@ -301,7 +301,7 @@ def show_table_extraction():
 # Sidebar for navigation
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.radio("Choose the Page",
-                            ["Main Page", "Summary Results", "Additional Selection", "Basic analysis", "Advanced Analysis", "Table Extraction" ])
+                            ["Main Page", "Additional Selection", "Summary Results", "Basic analysis", "Advanced Analysis", "Table Extraction" ])
 
 # Page routing based on sidebar selection
 if app_mode == "Main Page":

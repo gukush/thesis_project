@@ -12,6 +12,11 @@ import argparse
 import csv
 import io
 import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from sklearn.exceptions import ConvergenceWarning
+import numpy as np
+import warnings
 #import numpy as np
 
 # colors for visualization
@@ -21,8 +26,8 @@ COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
 ENLARGE_X = 100
 ENLARGE_Y = 100
 
-ENLARGE_CELL_X = 10
-ENLARGE_CELL_Y = 10
+ENLARGE_CELL_X = 7
+ENLARGE_CELL_Y = 7
 
 keywords = ['consolidated statement','financial statements']
 
@@ -64,6 +69,84 @@ def initializeTable():
     return model_structure, model_detection, image_processor
 #user_input = input("Type table to search for: ")
 
+def initializeTableSlim():
+    model_detection = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-detection")
+    image_processor = AutoImageProcessor.from_pretrained("microsoft/table-transformer-structure-recognition")
+    return model_detection, image_processor
+
+
+def find_optimal_clusters(data, max_k=30):
+    scores = []
+    for k in range(2, max_k+1):
+        kmeans = KMeans(n_clusters=k, random_state=0).fit(data)
+        score = silhouette_score(data, kmeans.labels_) # todo, maybe compare scores?
+        scores.append(score)
+    optimal_k = scores.index(max(scores)) + 2  # Adding 2 because range starts from 2
+    return optimal_k
+
+DENSITY_FACTOR = 2 # bigger if we want to handle sparser tables
+
+def ClusterInto(spans,max_k_y=20,max_k_x=30):
+    warnings.filterwarnings("ignore", category=FutureWarning, message=".*value of `n_init` will change from 10 to.*")
+    warnings.filterwarnings("ignore",category=ConvergenceWarning,message=".*found smaller than n_clusters.*")
+    # Extracting center points of each bbox
+    centers = np.array([(0.5 * (d['bbox'][0] + d['bbox'][2]), 0.5 * (d['bbox'][1] + d['bbox'][3])) for d in spans])
+    optimal_k_x = find_optimal_clusters(centers[:, 0].reshape(-1, 1),max_k_x)
+    if max_k_y < 0:
+        max_k_y = int(DENSITY_FACTOR*(len(spans)//optimal_k_x)) # we assume that table is dense
+        # enough that # cols would be proportional to ()# observations)/(# cols)
+
+    optimal_k_y = find_optimal_clusters(centers[:, 1].reshape(-1, 1),max_k_y)
+    # Clustering X and Y coordinates separately
+    kmeans_x = KMeans(n_clusters=optimal_k_x, random_state=0,n_init='auto').fit(centers[:, 0].reshape(-1, 1))
+    kmeans_y = KMeans(n_clusters=optimal_k_y, random_state=0,n_init='auto').fit(centers[:, 1].reshape(-1, 1))
+    # Creating the AxB grid
+    cluster_grid = np.array(np.meshgrid(kmeans_x.labels_, kmeans_y.labels_)).T.reshape(-1, 2)
+    print(f"optimal k_y {optimal_k_y}")
+    print(f"optimal k_x {optimal_k_x}")
+    
+    centroids_x = kmeans_x.cluster_centers_
+    centroids_y = kmeans_y.cluster_centers_
+    sorted_indices_x = np.argsort(centroids_x.ravel())
+    sorted_indices_y = np.argsort(centroids_y.ravel())
+    # Creating a sorted grid
+    sorted_matrix = [[[] for _ in range(optimal_k_x)] for _ in range(optimal_k_y)]
+
+    for item in spans:
+        center = (0.5 * (item['bbox'][0] + item['bbox'][2]), 0.5 * (item['bbox'][1] + item['bbox'][3]))
+        cluster_x = kmeans_x.predict([[center[0]]])[0]
+        cluster_y = kmeans_y.predict([[center[1]]])[0]
+        sorted_x = np.where(sorted_indices_x == cluster_x)[0][0]
+        sorted_y = np.where(sorted_indices_y == cluster_y)[0][0]
+        sorted_matrix[sorted_y][sorted_x].append(item['text'])
+    print(sorted_matrix)
+    joined_matrix = [[' '.join(sorted_matrix[i][j]).strip() for j in range(len(sorted_matrix[i]))] for i in range(len(sorted_matrix))]
+    return joined_matrix
+
+MIN_Y_SIZE = 5
+MIN_X_SIZE = 7
+
+def GetMatrixFromClustering(page,mat,box):
+    new_box = box.tolist()
+    new_area = fitz.Rect(new_box[0] - ENLARGE_X, new_box[1]-ENLARGE_Y, new_box[2]+ENLARGE_X, new_box[3]+ENLARGE_Y)        
+    original_box = new_area*~mat
+    big_dict = page.get_text("dict",clip = original_box)
+    #print(big_dict.get('blocks'))
+    spans = [span for block in big_dict.get('blocks',[])
+        for line in block.get('lines',[])
+        for span in line.get('spans',[])]
+    print(len(spans))
+    #spans = [ span for block in data.get('blocks', [])
+    #    for line in block.get('lines', [])
+    #    for span in line.get('spans', [])
+    #    ]
+    #max_k_y = 30
+    max_k_x = 30 # we assume that tables are vertical and that maximum amount of columns is 30
+    #print(f"max_k_x: {max_k_x}, max_k_y: {max_k_y}")
+    matrix = ClusterInto(spans,-1,max_k_x)
+    #res = []
+    return matrix
+
 
 def GetMatrixFromStructure(page,mat,rows,cols,origin_x, origin_y):
     # sort rows according to y0 and cols according to x0
@@ -71,14 +154,64 @@ def GetMatrixFromStructure(page,mat,rows,cols,origin_x, origin_y):
     cols.sort(key = lambda x: x[0])
     matrix = [[None for _ in cols] for _ in rows]
     for i, row in enumerate(rows):
+        #print("___________________NEW_ROW________________________\n")
         for j, col in enumerate(cols):
             box = fitz.Rect(col[0]+origin_x - ENLARGE_CELL_X,row[1]+origin_y-ENLARGE_CELL_Y,col[2]+origin_x+ENLARGE_CELL_X,row[3]+origin_y+ENLARGE_CELL_Y)
             original_box = box*~mat
+            #print(f"________________ORIGINAL_BOX:{original_box}______\n")
+            #print("___________________NEW_COL________________________\n")
+            #dicts = page.get_text('dict',clip=original_box)
             text = page.get_text("text",clip=original_box).strip()
-
             matrix[i][j] = text
     return matrix
 
+def split_cells(matrix):
+    # Prepare a list to store the new rows
+    new_rows = []
+
+    # Iterate through each row
+    for row in matrix:
+        # Split each cell by newline and store the number of splits for each cell
+        split_cells = [str(cell).split('\n') if cell is not None else [''] for cell in row]
+        max_splits = max(len(split) for split in split_cells)
+
+        # Create new rows by iterating over the number of splits
+        for i in range(max_splits):
+            new_row = [split[i] if i < len(split) else '' for split in split_cells]
+            new_rows.append(new_row)
+
+    return new_rows
+
+def remove_duplicates(matrix):
+    num_rows = len(matrix)
+    num_cols = len(matrix[0]) if num_rows > 0 else 0
+
+    for i in range(num_rows):
+        for j in range(num_cols):
+            current_cell = matrix[i][j]
+            # Skip empty cells or None
+            if not current_cell:
+                continue
+            k = j - 1
+            while k >= 0:
+                if matrix[i][k]:  # If the cell is not empty
+                    if current_cell in matrix[i][k]:
+                        matrix[i][j] = ''  # or None
+                        print(f"Found duplicate in {i},{j}")
+                    break  # Stop looking further to the left
+                k -= 1
+
+            # Check above
+            l = i - 1
+            while l >= 0:
+                if matrix[l][j]:  # If the cell is not empty
+                    if current_cell in matrix[l][j]:
+                        matrix[i][j] = ''  # or None
+                        print(f"Found duplicate in {i},{j}")
+                    break  # Stop looking further up
+                l -= 1
+
+    return matrix
 
 def SearchForTable(img, image_processor, model):
     inputs = image_processor(images=img,return_tensors="pt")
@@ -110,7 +243,20 @@ def SimpleDumpCSV(file_like, matrix):
 SPLIT = True
 
 
-
+def ClusterTableStepByStep(page,mat,model_detection,image_processor,plotting=False, basename="plot",cnt=0):
+    pix = page.get_pixmap(matrix=mat)
+    img = Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
+    results = SearchForTable(img, image_processor, model_detection)
+    tables_matrix_form = []
+    if plotting:
+        plot_results(img,results['scores'],results['labels'],results['boxes'],f"page_{page.number}",basename,model_detection,False)
+    for score, label, box in zip(results["scores"],results["labels"],results["boxes"]):
+        if model_detection.config.id2label[label.item()] == "table":
+            print("Table detected! Trying to cluster elements")
+            cnt = cnt + 1
+            our_matrix = GetMatrixFromClustering(page,mat,box)
+            tables_matrix_form.append(our_matrix)
+    return tables_matrix_form, cnt
 
 # gets fitz page object and searches for tables in it, dumping them to file-like object if they get found
 # returns list of tables which are represented like matrices (lists of lists)
@@ -119,6 +265,7 @@ def TableStepByStep(page,mat,model_detection, model_structure, image_processor, 
     img = Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
     results = SearchForTable(img, image_processor, model_detection)
     tables_matrix_form = []
+    #if plotting:
     plot_results(img,results['scores'],results['labels'],results['boxes'],f"page_{page.number}",basename,model_detection,False)
     for score, label, box in zip(results["scores"],results["labels"],results["boxes"]):
         if model_detection.config.id2label[label.item()] == "table":
@@ -150,13 +297,14 @@ def TableExtractionFromStream(stream, keywords, model_detection, model_structure
     if num_end is None:
         num_end = doc.page_count
     csv_strings = []
+    cnt_table = 0
     for i in range(num_start,num_end):
         page = doc[i]
         page_text = page.get_text("text")
         extract = any(keyword.lower() in page_text.lower() for keyword in keywords)
         tables = []
         if extract:
-            tables = TableStepByStep(page,pix_mat,model_detection,model_structure,image_processor,plotting)
+            tables, cnt_table = ClusterTableStepByStep(page,pix_mat,model_detection,image_processor,plotting,'false',cnt_table)#TableStepByStep(page,pix_mat,model_detection,model_structure,image_processor,plotting)
         for table in tables:
             csv_string = io.StringIO()
             SimpleDumpCSV(csv_string,table)
@@ -207,7 +355,8 @@ if __name__ == "__main__":
                 extract = True 
                 model_structure, model_detection, image_processor = initializeTable()
                 if extract:
-                    our_matrices, cnt_table = TableStepByStep(page,mat, model_detection, model_structure, image_processor,True,basename,cnt_table)
+                    our_matrices, cnt_table = ClusterTableStepByStep(page,mat,model_detection,image_processor,True, basename,cnt_table)
+    #TableStepByStep(page,mat, model_detection, model_structure, image_processor,True,basename,cnt_table)
                     for matrix in our_matrices:
                         n_tables = n_tables + 1
                         with open(f"matrix_{basename}_{n_tables}.csv", "w+") as my_csv:

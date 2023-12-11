@@ -12,11 +12,12 @@ import argparse
 import csv
 import io
 import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.metrics import silhouette_score,  calinski_harabasz_score, davies_bouldin_score
 from sklearn.exceptions import ConvergenceWarning
 import numpy as np
 import warnings
+import re
 #import numpy as np
 
 # colors for visualization
@@ -62,6 +63,7 @@ dir_path = "../examples/"
 mat = fitz.Matrix(10,10)
 #feature_extractor = DetrFeatureExtractor()
 directory = os.fsencode(dir_path)
+
 def initializeTable():
     model_structure = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-structure-recognition")
     model_detection = TableTransformerForObjectDetection.from_pretrained("microsoft/table-transformer-detection")
@@ -80,6 +82,8 @@ def find_optimal_clusters(data, max_k=30):
     for k in range(2, max_k+1):
         kmeans = KMeans(n_clusters=k, random_state=0).fit(data)
         score = silhouette_score(data, kmeans.labels_) # todo, maybe compare scores?
+        #score = calinski_harabasz_score(data, kmeans.labels_)
+        #score = davies_bouldin_score(data, kmeans.labels_)
         scores.append(score)
     optimal_k = scores.index(max(scores)) + 2  # Adding 2 because range starts from 2
     return optimal_k
@@ -88,12 +92,15 @@ DENSITY_FACTOR = 2 # bigger if we want to handle sparser tables
 
 def ClusterInto(spans,max_k_y=20,max_k_x=30):
     warnings.filterwarnings("ignore", category=FutureWarning, message=".*value of `n_init` will change from 10 to.*")
-    warnings.filterwarnings("ignore",category=ConvergenceWarning,message=".*found smaller than n_clusters.*")
+    #warnings.filterwarnings("ignore",category=ConvergenceWarning,message=".*found smaller than n_clusters.*")
     # Extracting center points of each bbox
-    centers = np.array([(0.5 * (d['bbox'][0] + d['bbox'][2]), 0.5 * (d['bbox'][1] + d['bbox'][3])) for d in spans])
+    centers = np.array([(0.5 * d['bbox'][0] + 0.5 * d['bbox'][2], 0.5 * (d['bbox'][1] + d['bbox'][3])) for d in spans])
+    max_k_x = len(np.unique(centers[:,0]))
+    max_k_y = len(np.unique(centers[:,1]))
+    print(f"max_k_x: {max_k_x}, max_k_y: {max_k_y}")
     optimal_k_x = find_optimal_clusters(centers[:, 0].reshape(-1, 1),max_k_x)
-    if max_k_y < 0:
-        max_k_y = int(DENSITY_FACTOR*(len(spans)//optimal_k_x)) # we assume that table is dense
+    #if max_k_y < 0:
+    #    max_k_y = int(DENSITY_FACTOR*(len(spans)//optimal_k_x)) # we assume that table is dense
         # enough that # cols would be proportional to ()# observations)/(# cols)
 
     optimal_k_y = find_optimal_clusters(centers[:, 1].reshape(-1, 1),max_k_y)
@@ -101,7 +108,7 @@ def ClusterInto(spans,max_k_y=20,max_k_x=30):
     kmeans_x = KMeans(n_clusters=optimal_k_x, random_state=0,n_init='auto').fit(centers[:, 0].reshape(-1, 1))
     kmeans_y = KMeans(n_clusters=optimal_k_y, random_state=0,n_init='auto').fit(centers[:, 1].reshape(-1, 1))
     # Creating the AxB grid
-    cluster_grid = np.array(np.meshgrid(kmeans_x.labels_, kmeans_y.labels_)).T.reshape(-1, 2)
+    
     print(f"optimal k_y {optimal_k_y}")
     print(f"optimal k_x {optimal_k_x}")
     
@@ -119,12 +126,31 @@ def ClusterInto(spans,max_k_y=20,max_k_x=30):
         sorted_x = np.where(sorted_indices_x == cluster_x)[0][0]
         sorted_y = np.where(sorted_indices_y == cluster_y)[0][0]
         sorted_matrix[sorted_y][sorted_x].append(item['text'])
-    print(sorted_matrix)
     joined_matrix = [[' '.join(sorted_matrix[i][j]).strip() for j in range(len(sorted_matrix[i]))] for i in range(len(sorted_matrix))]
+    #print(joined_matrix)
     return joined_matrix
 
 MIN_Y_SIZE = 5
 MIN_X_SIZE = 7
+def clean_matrix(matrix):
+    cleaned_matrix = []
+    number_separator_regex = re.compile(r'(\d+[\.,]?\d*)\s+(\(?\d+[\.,]?\d*\)?)')
+    for row in matrix:
+        # Filter out empty strings and append the cleaned row
+        cleaned_row = list(filter(None, row))
+        new_row = []
+        for cell in cleaned_row:
+            if cell == '$':
+                continue
+            # Find matches and split them into different rows
+            matches = number_separator_regex.match(cell)
+            if matches:
+                new_row.extend(matches.groups())
+            else:
+                new_row.append(cell)
+        
+        cleaned_matrix.append(new_row)
+    return cleaned_matrix
 
 def GetMatrixFromClustering(page,mat,box):
     new_box = box.tolist()
@@ -132,19 +158,20 @@ def GetMatrixFromClustering(page,mat,box):
     original_box = new_area*~mat
     big_dict = page.get_text("dict",clip = original_box)
     #print(big_dict.get('blocks'))
-    spans = [span for block in big_dict.get('blocks',[])
+    spans = [span for block in big_dict.get('blocks',[]) # dollars in random places break things
         for line in block.get('lines',[])
         for span in line.get('spans',[])]
-    print(len(spans))
+    spans = [span for span in spans if span['text'] != '$']
+    #print(spans)
     #spans = [ span for block in data.get('blocks', [])
     #    for line in block.get('lines', [])
     #    for span in line.get('spans', [])
     #    ]
     #max_k_y = 30
     max_k_x = 30 # we assume that tables are vertical and that maximum amount of columns is 30
-    #print(f"max_k_x: {max_k_x}, max_k_y: {max_k_y}")
-    matrix = ClusterInto(spans,-1,max_k_x)
-    #res = []
+    matrix = ClusterInto(spans)
+    matrix = clean_matrix(matrix)
+    print(matrix)
     return matrix
 
 
@@ -163,54 +190,6 @@ def GetMatrixFromStructure(page,mat,rows,cols,origin_x, origin_y):
             #dicts = page.get_text('dict',clip=original_box)
             text = page.get_text("text",clip=original_box).strip()
             matrix[i][j] = text
-    return matrix
-
-def split_cells(matrix):
-    # Prepare a list to store the new rows
-    new_rows = []
-
-    # Iterate through each row
-    for row in matrix:
-        # Split each cell by newline and store the number of splits for each cell
-        split_cells = [str(cell).split('\n') if cell is not None else [''] for cell in row]
-        max_splits = max(len(split) for split in split_cells)
-
-        # Create new rows by iterating over the number of splits
-        for i in range(max_splits):
-            new_row = [split[i] if i < len(split) else '' for split in split_cells]
-            new_rows.append(new_row)
-
-    return new_rows
-
-def remove_duplicates(matrix):
-    num_rows = len(matrix)
-    num_cols = len(matrix[0]) if num_rows > 0 else 0
-
-    for i in range(num_rows):
-        for j in range(num_cols):
-            current_cell = matrix[i][j]
-            # Skip empty cells or None
-            if not current_cell:
-                continue
-            k = j - 1
-            while k >= 0:
-                if matrix[i][k]:  # If the cell is not empty
-                    if current_cell in matrix[i][k]:
-                        matrix[i][j] = ''  # or None
-                        print(f"Found duplicate in {i},{j}")
-                    break  # Stop looking further to the left
-                k -= 1
-
-            # Check above
-            l = i - 1
-            while l >= 0:
-                if matrix[l][j]:  # If the cell is not empty
-                    if current_cell in matrix[l][j]:
-                        matrix[i][j] = ''  # or None
-                        print(f"Found duplicate in {i},{j}")
-                    break  # Stop looking further up
-                l -= 1
-
     return matrix
 
 def SearchForTable(img, image_processor, model):

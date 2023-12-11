@@ -140,6 +140,8 @@ def clean_matrix(matrix):
         cleaned_row = list(filter(None, row))
         new_row = []
         for cell in cleaned_row:
+            if cell == '$':
+                continue
             # Find matches and split them into different rows
             matches = number_separator_regex.match(cell)
             if matches:
@@ -147,7 +149,7 @@ def clean_matrix(matrix):
             else:
                 new_row.append(cell)
         
-        cleaned_data.append(new_row)
+        cleaned_matrix.append(new_row)
     return cleaned_matrix
 
 def GetMatrixFromClustering(page,mat,box):

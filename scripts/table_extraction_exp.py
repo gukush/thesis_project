@@ -2,15 +2,15 @@ import table_extraction as tab
 import fitz
 import os
 
-file = 'NYSE_DELL_2022.pdf'
+file = 'apple_2020.pdf'
 dir = '../examples/'
 
 doc = fitz.open(os.path.join(dir,file))
-num_page = 78
+num_page = 33
 page = doc.load_page(num_page)
 
 
-model_detection image_processor = tab.initializeTableSlim()
+model_detection, image_processor = tab.initializeTableSlim()
 
 
 mat = fitz.Matrix(10,10)

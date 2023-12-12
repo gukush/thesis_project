@@ -30,7 +30,7 @@ ENLARGE_Y = 100
 ENLARGE_CELL_X = 7
 ENLARGE_CELL_Y = 7
 
-keywords = ['consolidated statement','financial statements']
+keywords = ['consolidated','financial','statement','cash','flow']
 
 def plot_results(pil_img, scores, labels, boxes,table_desc, filename, model,structure=True):
     plt.clf()
@@ -98,33 +98,48 @@ def ClusterInto(spans,max_k_y=20,max_k_x=30):
     max_k_x = len(np.unique(centers[:,0]))
     max_k_y = len(np.unique(centers[:,1]))
     print(f"max_k_x: {max_k_x}, max_k_y: {max_k_y}")
-    optimal_k_x = find_optimal_clusters(centers[:, 0].reshape(-1, 1),max_k_x)
     #if max_k_y < 0:
     #    max_k_y = int(DENSITY_FACTOR*(len(spans)//optimal_k_x)) # we assume that table is dense
         # enough that # cols would be proportional to ()# observations)/(# cols)
-
-    optimal_k_y = find_optimal_clusters(centers[:, 1].reshape(-1, 1),max_k_y)
+    if max_k_x > 1:
+        optimal_k_x = find_optimal_clusters(centers[:, 0].reshape(-1, 1),max_k_x)     
+        kmeans_x = KMeans(n_clusters=optimal_k_x, random_state=0,n_init='auto').fit(centers[:, 0].reshape(-1, 1))
+        labels_x = kmeans_x.labels_
+    else:
+        labels_x = np.zeros(len(spans), dtype=int)
+        optimal_k_x = 1
+    if max_k_y > 1:
+        optimal_k_y = find_optimal_clusters(centers[:, 1].reshape(-1, 1),max_k_y)
+        kmeans_y = KMeans(n_clusters=optimal_k_y, random_state=0,n_init='auto').fit(centers[:, 1].reshape(-1, 1))
+        labels_y = kmeans_y.labels_
+    else:
+        labels_y = np.zeros(len(spans), dtype=int)
+        optimal_k_y = 1
     # Clustering X and Y coordinates separately
-    kmeans_x = KMeans(n_clusters=optimal_k_x, random_state=0,n_init='auto').fit(centers[:, 0].reshape(-1, 1))
-    kmeans_y = KMeans(n_clusters=optimal_k_y, random_state=0,n_init='auto').fit(centers[:, 1].reshape(-1, 1))
     # Creating the AxB grid
     
     print(f"optimal k_y {optimal_k_y}")
     print(f"optimal k_x {optimal_k_x}")
-    
-    centroids_x = kmeans_x.cluster_centers_
-    centroids_y = kmeans_y.cluster_centers_
-    sorted_indices_x = np.argsort(centroids_x.ravel())
-    sorted_indices_y = np.argsort(centroids_y.ravel())
+    if optimal_k_x > 1:
+        centroids_x = kmeans_x.cluster_centers_
+        sorted_indices_x = np.argsort(centroids_x.ravel())
+    else:
+        sorted_indices_x = np.array([0])
+    if optimal_k_x > 1:
+        centroids_y = kmeans_y.cluster_centers_
+        sorted_indices_y = np.argsort(centroids_y.ravel())
+    else:
+        sorted_indices_y = np.array([0])
     # Creating a sorted grid
     sorted_matrix = [[[] for _ in range(optimal_k_x)] for _ in range(optimal_k_y)]
+    for item, label_x, label_y in zip(spans, labels_x, labels_y):
 
-    for item in spans:
-        center = (0.5 * (item['bbox'][0] + item['bbox'][2]), 0.5 * (item['bbox'][1] + item['bbox'][3]))
-        cluster_x = kmeans_x.predict([[center[0]]])[0]
-        cluster_y = kmeans_y.predict([[center[1]]])[0]
-        sorted_x = np.where(sorted_indices_x == cluster_x)[0][0]
-        sorted_y = np.where(sorted_indices_y == cluster_y)[0][0]
+        #for item in spans:
+        #    center = (0.5 * (item['bbox'][0] + item['bbox'][2]), 0.5 * (item['bbox'][1] + item['bbox'][3]))
+        #cluster_x = kmeans_x.predict([[center[0]]])[0]
+        #cluster_y = kmeans_y.predict([[center[1]]])[0]
+        sorted_x = np.where(sorted_indices_x == label_x)[0][0]
+        sorted_y = np.where(sorted_indices_y == label_y)[0][0]
         sorted_matrix[sorted_y][sorted_x].append(item['text'])
     joined_matrix = [[' '.join(sorted_matrix[i][j]).strip() for j in range(len(sorted_matrix[i]))] for i in range(len(sorted_matrix))]
     #print(joined_matrix)

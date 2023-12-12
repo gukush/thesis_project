@@ -12,7 +12,7 @@ import argparse
 import csv
 import io
 import pandas as pd
-from sklearn.cluster import KMeans, DBSCAN
+from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score,  calinski_harabasz_score, davies_bouldin_score
 from sklearn.exceptions import ConvergenceWarning
 import numpy as np
@@ -97,6 +97,10 @@ def ClusterInto(spans,max_k_y=20,max_k_x=30):
     centers = np.array([(0.5 * d['bbox'][0] + 0.5 * d['bbox'][2], 0.5 * (d['bbox'][1] + d['bbox'][3])) for d in spans])
     max_k_x = len(np.unique(centers[:,0]))
     max_k_y = len(np.unique(centers[:,1]))
+    if max_k_x >= len(centers[:,0]):
+        max_k_x = len(centers[:,0]) - 1
+    if max_k_y >= len(centers[:,1]):
+        max_k_y = len(centers[:,1]) - 1
     print(f"max_k_x: {max_k_x}, max_k_y: {max_k_y}")
     #if max_k_y < 0:
     #    max_k_y = int(DENSITY_FACTOR*(len(spans)//optimal_k_x)) # we assume that table is dense
@@ -215,7 +219,7 @@ def SearchForTable(img, image_processor, model):
         #should be model for detection
         outputs = model(**inputs)
     target_sizes = torch.tensor([img.size[::-1]])
-    results = image_processor.post_process_object_detection(outputs, threshold = 0.9, target_sizes=target_sizes)[0]
+    results = image_processor.post_process_object_detection(outputs, threshold = 0.6, target_sizes=target_sizes)[0]
     return results
 # dx and dy in this function are variables responsible for how much area outside of the box should also be taken from the image
 def ExtractTable(img, box, dx, dy, model, image_processor):
@@ -228,7 +232,7 @@ def ExtractTable(img, box, dx, dy, model, image_processor):
     	#should be model for structure analysis
     	outputs = model(**inputs)
     target_sizes = torch.tensor([new_img.size[::-1]])
-    results = image_processor.post_process_object_detection(outputs, threshold=0.9,target_sizes=target_sizes)[0]
+    results = image_processor.post_process_object_detection(outputs, threshold=0.78,target_sizes=target_sizes)[0]
     #plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
     return results
 
@@ -297,12 +301,16 @@ def TableExtractionFromStreamPageRanges(stream,keywords,model_detection,image_pr
     doc = fitz.Document(stream=stream)
     cnt_table = 0
     csv_strings = []
+    custom_patterns = [re.compile('(consolidated)? statement(s)? of comprehensive income')]
     for page_range in page_ranges:
         for i in range(page_range[0],page_range[1]):
             page = doc[i]
-            extract = True # for now set it to true
+            page_text = page.get_text("text").lower()
+            extract = any( re.search(pattern,page_text) for pattern in custom_patterns) # for now set it to true
+            print(f"was keyword matched? {extract}")
             tables = []
-            tables, cnt_table = ClusterTableStepByStep(page,pix_mat,model_detection,image_processor,plotting,'false',cnt_table)
+            if extract:
+                tables, cnt_table = ClusterTableStepByStep(page,pix_mat,model_detection,image_processor,plotting,'false',cnt_table)
             for table in tables:
                 csv_string = io.StringIO()
                 SimpleDumpCSV(csv_string,table,for_pandas=True)
@@ -348,7 +356,7 @@ def SplitImageInHalf(img,horizontal = True):
     return img_l, img_r
 
 if __name__ == "__main__":
-    df = pd.read_csv("../table_test_pages.csv")
+    df = pd.read_csv("../tables/table_test_pages.csv")
     model_structure, model_detection, image_processor = initializeTable()
     for file in os.listdir(directory):
         filename = os.fsdecode(file)

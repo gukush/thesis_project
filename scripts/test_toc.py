@@ -112,56 +112,59 @@ def get_toc_df(best_candidate):
 
 # Usage
 #file_path = '../examples/Alphabet_2022.pdf'
-dir_path = "../examples/"
-directory = os.fsencode(dir_path)
-toc_list = []
-x_tolerance = 17 
-y_tolerance = 5
- # Adjust as needed based on your document's layout
-if __name__ == "__main__":
-    for file in os.listdir(directory):
-        filename = os.fsdecode(file)
-        full_path = dir_path+filename
-        doc = fitz.open(full_path)
-        toc = find_best_candidate(doc,x_tolerance,y_tolerance)
-        toc_list.append((filename,toc[0]+1)) # account for 0-indexing
-        print(f"Page number: {toc[0]}")
-        print(f"Column at x={toc[1]}:")
-        print("Sorted Numbers:", toc[2])
-        print("Extracted Text:", toc[3])
-        print("Score:",toc[4])
-        print("\n")
-        doc.close()
-
-#toc_candidate = find_best_candidate(doc, x_tolerance, y_tolerance)
-with open('toc_pred.csv','w') as out:
-    csv_out = csv.writer(out)
-    csv_out.writerow(['filename','page_pred'])
-    csv_out.writerows(toc_list)
-
-
-
 if False:
     dir_path = "../examples/"
     directory = os.fsencode(dir_path)
     toc_list = []
+    x_tolerance = 17 
+    y_tolerance = 5
+     # Adjust as needed based on your document's layout
     if __name__ == "__main__":
         for file in os.listdir(directory):
             filename = os.fsdecode(file)
             full_path = dir_path+filename
             doc = fitz.open(full_path)
-            n_tables = 0
-            i = 0
-            toc = doc.get_toc()
-            toc_list.append((filename,toc))
+            toc = find_best_candidate(doc,x_tolerance,y_tolerance)
+            toc_list.append((filename,toc[0]+1)) # account for 0-indexing
+            print(f"Page number: {toc[0]}")
+            print(f"Column at x={toc[1]}:")
+            print("Sorted Numbers:", toc[2])
+            print("Extracted Text:", toc[3])
+            print("Score:",toc[4])
+            print("\n")
+            doc.close()
 
-    cnt_empty = 0
-    for filename, toc in toc_list:
-        print(f"{filename} : {len(toc)}")
-        if len(toc) == 0:
-            cnt_empty = cnt_empty + 1
+    #toc_candidate = find_best_candidate(doc, x_tolerance, y_tolerance)
+    with open('toc_pred.csv','w') as out:
+        csv_out = csv.writer(out)
+        csv_out.writerow(['filename','page_pred'])
+        csv_out.writerows(toc_list)
 
-    print(f"cnt_empty is {cnt_empty}")
+
+
+if True:
+    if __name__ == '__main__':
+        dir_path = "../examples/"
+        directory = os.fsencode(dir_path)
+        toc_list = []
+        if __name__ == "__main__":
+            for file in os.listdir(directory):
+                filename = os.fsdecode(file)
+                full_path = dir_path+filename
+                doc = fitz.open(full_path)
+                n_tables = 0
+                i = 0
+                toc = doc.get_toc()
+                toc_list.append((filename,toc))
+
+        cnt_empty = 0
+        for filename, toc in toc_list:
+            print(f"{filename} : {len(toc)}")
+            if len(toc) == 0:
+                cnt_empty = cnt_empty + 1
+
+        print(f"cnt_empty is {cnt_empty}")
+        print(f"percent empty is {cnt_empty / len(toc_list)}")
 
 
 

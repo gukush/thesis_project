@@ -177,6 +177,8 @@ def GetMatrixFromClustering(page,mat,box):
         for line in block.get('lines',[])
         for span in line.get('spans',[])]
     spans = [span for span in spans if span['text'] != '$']
+    if len(spans) < 2:
+        return []
     #print(spans)
     #spans = [ span for block in data.get('blocks', [])
     #    for line in block.get('lines', [])
@@ -230,7 +232,10 @@ def ExtractTable(img, box, dx, dy, model, image_processor):
     #plot_results(new_img,new_results['scores'],new_results['labels'],new_results['boxes'],n_tables)
     return results
 
-def SimpleDumpCSV(file_like, matrix):
+def SimpleDumpCSV(file_like, matrix,for_pandas=False):
+    if for_pandas:
+        max_cols = max(len(row) for row in matrix)
+        matrix = [row + [''] * (max_cols - len(row)) for row in matrix]
     csvWriter = csv.writer(file_like,delimiter=',')
     csvWriter.writerows(matrix)
 
@@ -249,7 +254,10 @@ def ClusterTableStepByStep(page,mat,model_detection,image_processor,plotting=Fal
             print("Table detected! Trying to cluster elements")
             cnt = cnt + 1
             our_matrix = GetMatrixFromClustering(page,mat,box)
-            tables_matrix_form.append(our_matrix)
+            if our_matrix == []:
+                continue
+            else:
+                tables_matrix_form.append(our_matrix)
     return tables_matrix_form, cnt
 
 # gets fitz page object and searches for tables in it, dumping them to file-like object if they get found
@@ -284,6 +292,24 @@ def TableStepByStep(page,mat,model_detection, model_structure, image_processor, 
             tables_matrix_form.append(our_matrix)
     return tables_matrix_form, cnt
 
+
+def TableExtractionFromStreamPageRanges(stream,keywords,model_detection,image_processor,page_ranges,pix_mat = mat, plotting = False):
+    doc = fitz.Document(stream=stream)
+    cnt_table = 0
+    csv_strings = []
+    for page_range in page_ranges:
+        for i in range(page_range[0],page_range[1]):
+            page = doc[i]
+            extract = True # for now set it to true
+            tables = []
+            tables, cnt_table = ClusterTableStepByStep(page,pix_mat,model_detection,image_processor,plotting,'false',cnt_table)
+            for table in tables:
+                csv_string = io.StringIO()
+                SimpleDumpCSV(csv_string,table,for_pandas=True)
+                csv_strings.append((i,csv_string.getvalue())) # tuple of Page numbers as well as csv contents
+                csv_string.close()
+    return csv_strings
+
 def TableExtractionFromStream(stream, keywords, model_detection, model_structure, image_processor, pix_mat = mat, plotting = False, num_start = None, num_end = None):
     doc = fitz.Document(stream=stream)
     if num_start is None:
@@ -291,7 +317,6 @@ def TableExtractionFromStream(stream, keywords, model_detection, model_structure
     if num_end is None:
         num_end = doc.page_count
     csv_strings = []
-    cnt_table = 0
     for i in range(num_start,num_end):
         page = doc[i]
         page_text = page.get_text("text")
@@ -301,7 +326,7 @@ def TableExtractionFromStream(stream, keywords, model_detection, model_structure
             tables, cnt_table = ClusterTableStepByStep(page,pix_mat,model_detection,image_processor,plotting,'false',cnt_table)#TableStepByStep(page,pix_mat,model_detection,model_structure,image_processor,plotting)
         for table in tables:
             csv_string = io.StringIO()
-            SimpleDumpCSV(csv_string,table)
+            SimpleDumpCSV(csv_string,table,for_pandas=True)
             csv_strings.append((i,csv_string.getvalue())) # tuple of Page numbers as well as csv contents
             csv_string.close()
     return csv_strings
@@ -353,7 +378,7 @@ if __name__ == "__main__":
     #TableStepByStep(page,mat, model_detection, model_structure, image_processor,True,basename,cnt_table)
                     for matrix in our_matrices:
                         n_tables = n_tables + 1
-                        with open(f"matrix_{basename}_{n_tables}.csv", "w+") as my_csv:
+                        with open(f"matrix_{basename}_{n_tables}.csv", "w+",newline='',encoding='utf-8') as my_csv:
                             SimpleDumpCSV(my_csv,matrix)
             time_elapsed = time.time() - start_time
             result_list.append((filename,n_tables,time_elapsed))

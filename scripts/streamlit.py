@@ -271,31 +271,50 @@ def show_advanced_analysis():
         st.markdown(color_html, unsafe_allow_html=True)
 
 def show_table_extraction():
-    # Extract Table Button at the bottom
-    if st.button("Extract Table (If it works)"):
-        if 'uploaded_file' not in st.session_state:
-            st.write('Please upload report')
-        else:
-            report_data = st.session_state['uploaded_file'].getvalue()
-            # TODO: make initialization once per session
-            model_structure, model_detection, image_processor = tab.initializeTable()
-            st.session_state['csv_strings'] = tab.TableExtractionFromStream(stream=report_data, keywords=tab.keywords,
-                                                        num_start=st.session_state['num_start'],num_end=st.session_state['num_end'],
-                                                        model_structure = model_structure, model_detection = model_detection,
-                                                        image_processor = image_processor
-                                                        )
-            n_table = 0
-            for i, csv_string in st.session_state['csv_strings']:
-                n_table = n_table + 1
-                st.write(f"Found on page {i}")
-                st.write(pd.read_csv(io.StringIO(csv_string)))
-                st.download_button(
-                        "Download csv file",
-                        csv_string,
-                        f"table_{n_table}.csv",
-                        "text/csv"
-                        )
-            st.write("done")
+    
+    if 'toc' in st.session_state:
+        df = st.session_state['toc']
+        df['End page'] = df['PDF index'].shift(-1, fill_value=df['PDF index'].iloc[-1]) # - 1
+    else:
+        df = pd.DataFrame()
+
+    page_ranges = []
+    col1, col2 = st.columns(2)
+    with col1:
+        for index, row in df.iterrows():
+            chapter_label = f"{row['Chapter name']} (Page {row['Chapter page']})"
+            if st.checkbox(chapter_label, key=index):
+                page_ranges.append((row['PDF index'], row['End page']))
+        # Extract Table Button at the bottom
+    with col2:
+        if st.button("Extract Table"):
+            if 'uploaded_file' not in st.session_state:
+                st.write('Please upload report')
+            else:
+                report_data = st.session_state['uploaded_file'].getvalue()
+                if df.empty:
+                    st.write(df)
+
+                # TODO: make initialization once per session
+                model_structure, model_detection, image_processor = tab.initializeTable()
+                st.session_state['csv_strings'] = tab.TableExtractionFromStreamPageRanges(stream=report_data, keywords=tab.keywords,
+                                                            page_ranges = page_ranges,                    #num_start=st.session_state['num_start'],num_end=st.session_state['num_end'],
+                                                            model_detection = model_detection,
+                                                            image_processor = image_processor
+                                                            )
+                n_table = 0
+                print(st.session_state['csv_strings'])
+                for i, csv_string in st.session_state['csv_strings']:
+                    n_table = n_table + 1
+                    st.write(f"Found on page {i}")
+                    st.write(pd.read_csv(io.StringIO(csv_string),sep=',',header=None))
+                    st.download_button(
+                            "Download csv file",
+                            csv_string,
+                            f"table_{n_table}.csv",
+                            "text/csv"
+                            )
+                st.write("done")
 
 
 # Sidebar for navigation

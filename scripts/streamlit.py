@@ -116,19 +116,18 @@ def show_additional_selection():
         st.write(
             f"Selected Page Start: {st.session_state['num_start']}, Selected Page End: {st.session_state['num_end']}")
 
+    option = st.selectbox('Choose type of summarization', ('Extractive (textrank)', 'Abstractive (BART)'), index=0)
+    if 'textrank' in option:
+        st.session_state['summary'] = TEXTRANK_SUMMARY
+    elif 'BART' in option:
+        st.session_state['summary'] = BART_SUMMARY
+    else:
+        st.session_state['summary'] = ERROR_SUMMARY
 
     # Input fields and variable/s
     col1, col2 = st.columns(2)
 
     with col1:
-        option = st.selectbox('Choose type of summarization',('Extractive (textrank)','Abstractive (BART)'),index=0)
-        if 'textrank' in option:
-            st.session_state['summary'] = TEXTRANK_SUMMARY
-        elif 'BART' in option:
-            st.session_state['summary'] = BART_SUMMARY
-        else:
-            st.session_state['summary'] = ERROR_SUMMARY
-        #extractive_summary = st.checkbox("Extractive Summary")
         st.session_state['basic_analysis'] = st.checkbox("Basic Analysis", True)
         advanced_analysis = st.checkbox("Advanced Analysis")
         st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=6, step=1)
@@ -153,7 +152,12 @@ def show_additional_selection():
         # Custom keywords input
         st.write("\n\n")
         st.write("\n\n")
-        #st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
         custom_keywords = st.text_area("Enter custom keywords (separated by commas)")
         if custom_keywords:
             st.session_state['custom_keywords'] = [word.strip() for word in custom_keywords.split(',')]
@@ -161,16 +165,16 @@ def show_additional_selection():
         if st.button("Clear keywords") and 'custom_keywords' in st.session_state:
             st.session_state['custom_keywords'] = []
             st.write("Custom keywords have been cleared.")
-    # Processing the uploaded file (placeholder logic)
-    if st.button('Run pipeline') and uploaded_file is not None:
-        if st.session_state['whole_report']:
-            st.session_state['num_end'] = None
-            st.session_state['num_start'] = None
-        st.session_state['uploaded_file'] = uploaded_file
-        st.session_state['summary_results'] = process_report(uploaded_file, st.session_state['summary'], st.session_state['num_start'], st.session_state['num_end'], st.session_state['num_sentences'] )
-        st.write("Your summary is ready. Visit summary tab to see it!")
-    elif uploaded_file is None:
-        st.write("Please add you file")
+        # Processing the uploaded file (placeholder logic)
+        if st.button('Run pipeline') and uploaded_file is not None:
+            if st.session_state['whole_report']:
+                st.session_state['num_end'] = None
+                st.session_state['num_start'] = None
+            st.session_state['uploaded_file'] = uploaded_file
+            st.session_state['summary_results'] = process_report(uploaded_file, st.session_state['summary'], st.session_state['num_start'], st.session_state['num_end'], st.session_state['num_sentences'] )
+            st.write("Your summary is ready. Visit summary tab to see it!")
+        elif uploaded_file is None:
+            st.write("Please add you file")
 
 
 def show_basic_analysis():
@@ -225,7 +229,6 @@ def show_summary_results():
         st.write(st.session_state["summary_results"])
     else:
         st.write("Summary results not available.")
-        #st.write(st.session_state["similarity_matrix"])
 
 def custom_slider_color(hex_color):
     st.markdown(f"""
@@ -257,9 +260,12 @@ def show_advanced_analysis():
             Financial_sentiment_df_sel = Financial_sentiment_df[columns_to_display]
             st.write(Financial_sentiment_df_sel)
             st.session_state['average_sentiment_financial'] = Financial_sentiment_df["Sentiment Score"].mean()
-            st.write("Average sentiment score", st.session_state['average_sentiment_financial'])
+            #st.write("Average sentiment score", st.session_state['average_sentiment_financial'])
             color_fin = front.get_slider_color(st.session_state['average_sentiment_financial'])
-            custom_slider_color(color_fin)
+            st.markdown(
+                f"Average sentiment score: <span style='color: {color_fin};'> {st.session_state['average_sentiment_financial']}</span>",
+                unsafe_allow_html=True)
+            #custom_slider_color(color_fin)
             sentiment_value = st.slider("Financial state", min_value=-1.0, max_value=1.0,
                                         value=float(st.session_state['average_sentiment_financial']), disabled=True)
             #ESG state section
@@ -272,9 +278,12 @@ def show_advanced_analysis():
             st.write(ESG_sentiment_df_sel)
 
             st.session_state['average_sentiment_esg'] = ESG_sentiment_df["Sentiment Score"].mean()
-            st.write("Average sentiment score", st.session_state['average_sentiment_esg'])
+            #st.write("Average sentiment score", st.session_state['average_sentiment_esg'])
             color_esg = front.get_slider_color(st.session_state['average_sentiment_esg'])
-            custom_slider_color(color_esg)
+            # Use HTML to style the text
+            st.markdown(f"Average sentiment score: <span style='color: {color_esg};'> {st.session_state['average_sentiment_esg']}</span>",
+                        unsafe_allow_html=True)
+            #custom_slider_color(color_esg)
             sentiment_value = st.slider("ESG Sentiment Score", min_value=-1.0, max_value=1.0,
                                             value=float(st.session_state['average_sentiment_esg']), disabled=True)
             #st.write(sentiment_value)
@@ -290,9 +299,12 @@ def show_advanced_analysis():
             st.write(Goals_sentiment_df_sel)
 
             st.session_state['average_goals_sentiment'] = Goals_sentiment_df["Sentiment Score"].mean()
-            st.write("Average sentiment score", st.session_state['average_goals_sentiment'])
+            #st.write("Average sentiment score", st.session_state['average_goals_sentiment'])
             color_goals = front.get_slider_color(sentiment_value)
-            custom_slider_color(color_goals)
+            st.markdown(
+                f"Average sentiment score: <span style='color: {color_goals};'> {st.session_state['average_goals_sentiment']}</span>",
+                unsafe_allow_html=True)
+            #custom_slider_color(color_goals)
             sentiment_value = st.slider("Goals and objectives Sentiment Score", min_value=-1.0, max_value=1.0,
                                         value=float(st.session_state['average_goals_sentiment']), disabled=True)
 
@@ -306,9 +318,12 @@ def show_advanced_analysis():
             st.write(Risks_sentiment_df_sel)
 
             st.session_state['average_risks_sentiment'] = Risks_sentiment_df["Sentiment Score"].mean()
-            st.write("Average sentiment score", st.session_state['average_risks_sentiment'])
+            #st.write("Average sentiment score", st.session_state['average_risks_sentiment'])
             color_risk = front.get_slider_color(sentiment_value)
-            custom_slider_color(color_risk)
+            st.markdown(
+                f"Average sentiment score: <span style='color: {color_risk};'> {st.session_state['average_risks_sentiment']}</span>",
+                unsafe_allow_html=True)
+            #custom_slider_color(color_risk)
             color_html = f"<div style='width: 50px; height: 20px; background-color: {color_risk};'></div>"
             sentiment_value = st.slider("Goals and objectives Sentiment Score", min_value=-1.0, max_value=1.0,
                                         value=float(st.session_state['average_risks_sentiment']), disabled=True)

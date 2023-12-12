@@ -37,7 +37,7 @@ def read_ngrams_from_file(file_path):
 
     return stemmed_ngrams
 
-Financial_chapter_pattern = [r'Financial', r'Financial discussion', r'Item 7\.', ]
+Financial_chapter_pattern = [r'\bFinancial\b', r'Financial discussion', 'Financial statement', r'Item 7\.']
 ESG_keywords = read_ngrams_from_file("/thesis_project/examples/ESG_word_list.txt")
 #print(ESG_keywords)
 Risk_keywords = ["Risk, risks", "threats"]

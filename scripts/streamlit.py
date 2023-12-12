@@ -74,6 +74,18 @@ def update_selected_pages(index):
     if st.session_state['num_start'] == st.session_state['num_end']:
         st.session_state['num_end'] += 1
 
+def flatten_chapter_names(df):
+    def join_list_elements(lst):
+        # Check if the element is a list
+        if isinstance(lst, list):
+            # Join the list elements into a string
+            return ' '.join(map(str, lst))
+        return lst  # Return as is if not a list
+
+    # Apply this function to the 'Chapter name' column
+    df['Chapter name'] = df['Chapter name'].apply(join_list_elements)
+    return df
+
 # Function for the additional selection page
 def show_additional_selection():
     st.header("Additional Selection")
@@ -83,16 +95,18 @@ def show_additional_selection():
 
     #if "toc" in st.session_state:
         #st.write(st.session_state["toc"])
-    if uploaded_file is not None:
+    if uploaded_file is not None and st.session_state['whole_report'] == False:
         #st.write("plik jest")
         doc = fitz.Document(stream=uploaded_file.getvalue())
         best_candidate = toc.find_best_candidate(doc)
+        #We add toc to global variables and convert names in form of list to string
         st.session_state["toc"] = toc.get_toc_df(best_candidate)
+        st.session_state["toc"] = flatten_chapter_names(st.session_state["toc"])
+        print(st.session_state["toc"])
         # Create a list of chapter names for the dropdown
-        #chapter_names = st.session_state["toc"]["Chapter name"].tolist()
         chapter_names = st.session_state["toc"].apply(
-            lambda row: f'{row["Chapter name"]} - {row["Chapter page"]}', axis=1).tolist()
-        print(chapter_names)
+            lambda row: f'{row["Chapter name"]} - {row["Chapter page"]} page', axis=1).tolist()
+        #print(chapter_names)
         # Create a dropdown (select box) for chapter names
         st.session_state["selected_chapter"] = st.selectbox("Select a chapter", chapter_names)
 
@@ -102,19 +116,18 @@ def show_additional_selection():
         st.write(
             f"Selected Page Start: {st.session_state['num_start']}, Selected Page End: {st.session_state['num_end']}")
 
+    option = st.selectbox('Choose type of summarization', ('Extractive (textrank)', 'Abstractive (BART)'), index=0)
+    if 'textrank' in option:
+        st.session_state['summary'] = TEXTRANK_SUMMARY
+    elif 'BART' in option:
+        st.session_state['summary'] = BART_SUMMARY
+    else:
+        st.session_state['summary'] = ERROR_SUMMARY
 
     # Input fields and variable/s
     col1, col2 = st.columns(2)
 
     with col1:
-        option = st.selectbox('Choose type of summarization',('Extractive (textrank)','Abstractive (BART)'),index=0)
-        if 'textrank' in option:
-            st.session_state['summary'] = TEXTRANK_SUMMARY
-        elif 'BART' in option:
-            st.session_state['summary'] = BART_SUMMARY
-        else:
-            st.session_state['summary'] = ERROR_SUMMARY
-        #extractive_summary = st.checkbox("Extractive Summary")
         st.session_state['basic_analysis'] = st.checkbox("Basic Analysis", True)
         advanced_analysis = st.checkbox("Advanced Analysis")
         st.session_state['num_sentences'] = st.number_input("Number of sentences in summary", min_value=1, value=6, step=1)
@@ -139,7 +152,12 @@ def show_additional_selection():
         # Custom keywords input
         st.write("\n\n")
         st.write("\n\n")
-        #st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
+        st.write("\n\n")
         custom_keywords = st.text_area("Enter custom keywords (separated by commas)")
         if custom_keywords:
             st.session_state['custom_keywords'] = [word.strip() for word in custom_keywords.split(',')]
@@ -147,14 +165,16 @@ def show_additional_selection():
         if st.button("Clear keywords") and 'custom_keywords' in st.session_state:
             st.session_state['custom_keywords'] = []
             st.write("Custom keywords have been cleared.")
-    # Processing the uploaded file (placeholder logic)
-    if st.button('Run pipeline') and uploaded_file is not None:
-        #st.write("File processing logic goes here.")
-        st.session_state['uploaded_file'] = uploaded_file
-        st.session_state['summary_results'] = process_report(uploaded_file, st.session_state['summary'], st.session_state['num_start'], st.session_state['num_end'], st.session_state['num_sentences'] )
-        st.write("Your summary is ready. Visit summary tab to see it!")
-    elif uploaded_file is None:
-        st.write("Please add you file")
+        # Processing the uploaded file (placeholder logic)
+        if st.button('Run pipeline') and uploaded_file is not None:
+            if st.session_state['whole_report']:
+                st.session_state['num_end'] = None
+                st.session_state['num_start'] = None
+            st.session_state['uploaded_file'] = uploaded_file
+            st.session_state['summary_results'] = process_report(uploaded_file, st.session_state['summary'], st.session_state['num_start'], st.session_state['num_end'], st.session_state['num_sentences'] )
+            st.write("Your summary is ready. Visit summary tab to see it!")
+        elif uploaded_file is None:
+            st.write("Please add you file")
 
 
 def show_basic_analysis():
@@ -165,7 +185,7 @@ def show_basic_analysis():
         st.session_state['report_year'] = ed.find_years(st.session_state['report_text'])
         #st.write(st.session_state['company_name'])
         col1, col2 = st.columns(2)
-        page_num_selected = st.session_state['num_end'] - st.session_state['num_start']
+
         with col1:
             st.subheader('Company Details')
             company = st.text_input('Company', st.session_state['company_name'])
@@ -173,6 +193,7 @@ def show_basic_analysis():
             report_type = st.text_input('Type', st.session_state['report type'])
             pages_whole = st.number_input('Pages (whole report)', value=st.session_state['report_page_count'])
             if(st.session_state['whole_report'] == False):
+                page_num_selected = st.session_state['num_end'] - st.session_state['num_start']
                 pages_selected = st.number_input('Pages (selected part)', value=page_num_selected)
             avg_words = st.number_input('Average Words per Page (selected part)', value= st.session_state['Word_count']/page_num_selected)
             sentences = st.number_input('Number of Sentences (in the selected part)', value=len(st.session_state['preprocessed_df']))
@@ -208,67 +229,104 @@ def show_summary_results():
         st.write(st.session_state["summary_results"])
     else:
         st.write("Summary results not available.")
-        #st.write(st.session_state["similarity_matrix"])
+
+def custom_slider_color(hex_color):
+    st.markdown(f"""
+        <style>
+            .stSlider > div:nth-child(2) > div:nth-child(1) {{
+                background: linear-gradient(to right, {hex_color} 0%, {hex_color} 100%);
+            }}
+        </style>
+        """, unsafe_allow_html=True)
 
 def show_advanced_analysis():
     # Advanced Analysis Tab Content
     st.header("Advanced Analysis")
-
+    col1, col2 = st.columns(2)
     if 'bounded_report_text' in st.session_state:
-        ESG_sentences = sa.extract_sentences_with_keywords(sa.ESG_keywords, st.session_state['preprocessed_df'])
-        Goals_sentences = sa.extract_sentences_with_keywords(sa.Risk_keywords, st.session_state['preprocessed_df'])
-        Risks_sentences = sa.extract_sentences_with_keywords(sa.Goals_keywords, st.session_state['preprocessed_df'])
+        ESG_sentences = sa.extract_sentences_with_ngrams(sa.ESG_keywords, st.session_state['preprocessed_df'])
+        Goals_sentences = sa.extract_sentences_with_keywords(sa.Goals_keywords, st.session_state['preprocessed_df'])
+        Risk_factors  = sa.filter_sentences(st.session_state['preprocessed_df'], st.session_state["toc"], sa.Risk_chapter_pattern)
+        Financial_state = sa.filter_sentences(st.session_state['preprocessed_df'], st.session_state["toc"], sa.Financial_chapter_pattern)
+        columns_to_display = ["Original Sentence", "Sentiment Score"]
 
-        col1, col2 = st.columns(2)
-        ESG_sentiment_df = sa.analyze_sentiment(ESG_sentences)
-        st.write(ESG_sentiment_df)
-        average_sentiment = ESG_sentiment_df["Sentiment Score"].mean()
-        st.write("Average sentiment score", average_sentiment)
-        st.session_state['average_sentiment'] = average_sentiment
-        # Slider
-        sentiment_value = st.slider("ESG Sentiment Score", min_value=-1.0, max_value=1.0,
-                                    value=float(average_sentiment), disabled=True)
-        color = front.get_slider_color(sentiment_value)
-        color_html = f"<div style='width: 50px; height: 20px; background-color: {color};'></div>"
-        st.markdown(color_html, unsafe_allow_html=True)
-        # Display the color indicator
+        with col1:
+            #Financial state section
+            st.markdown('<div class="financial-section">', unsafe_allow_html=True)
+            st.subheader('Financial state')
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    #st.markdown('</div>', unsafe_allow_html=True)
+            Financial_sentiment_df = sa.analyze_sentiment(Financial_state)
+            Financial_sentiment_df_sel = Financial_sentiment_df[columns_to_display]
+            st.write(Financial_sentiment_df_sel)
+            st.session_state['average_sentiment_financial'] = Financial_sentiment_df["Sentiment Score"].mean()
+            #st.write("Average sentiment score", st.session_state['average_sentiment_financial'])
+            color_fin = front.get_slider_color(st.session_state['average_sentiment_financial'])
+            st.markdown(
+                f"Average sentiment score: <span style='color: {color_fin};'> {st.session_state['average_sentiment_financial']}</span>",
+                unsafe_allow_html=True)
+            #custom_slider_color(color_fin)
+            sentiment_value = st.slider("Financial state", min_value=-1.0, max_value=1.0,
+                                        value=float(st.session_state['average_sentiment_financial']), disabled=True)
+            #ESG state section
+            st.markdown('<div class="esg-section">', unsafe_allow_html=True)
+            st.subheader('ESG')
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    # Goals and Objectives Section
-    with col2:
-        st.markdown('<div class="goals-section">', unsafe_allow_html=True)
-        st.subheader('Goals and Objectives')
-        st.text_area('Main Goals, based on the ranks from Text Rank')
-        st.markdown('</div>', unsafe_allow_html=True)
+            ESG_sentiment_df = sa.analyze_sentiment(ESG_sentences)
+            ESG_sentiment_df_sel = ESG_sentiment_df[columns_to_display]
+            st.write(ESG_sentiment_df_sel)
 
-        Goals_sentiment_df = sa.analyze_sentiment(Goals_sentences)
-        st.write(Goals_sentiment_df)
-        average_goals_sentiment = Goals_sentiment_df["Sentiment Score"].mean()
-        st.write("Average sentiment score", average_goals_sentiment)
-        # Slider
-        sentiment_value = st.slider("Goals and objectives Sentiment Score", min_value=-1.0, max_value=1.0,
-                                    value=float(average_goals_sentiment), disabled=True)
-        color = front.get_slider_color(sentiment_value)
-        color_html = f"<div style='width: 50px; height: 20px; background-color: {color};'></div>"
-        st.markdown(color_html, unsafe_allow_html=True)
+            st.session_state['average_sentiment_esg'] = ESG_sentiment_df["Sentiment Score"].mean()
+            #st.write("Average sentiment score", st.session_state['average_sentiment_esg'])
+            color_esg = front.get_slider_color(st.session_state['average_sentiment_esg'])
+            # Use HTML to style the text
+            st.markdown(f"Average sentiment score: <span style='color: {color_esg};'> {st.session_state['average_sentiment_esg']}</span>",
+                        unsafe_allow_html=True)
+            #custom_slider_color(color_esg)
+            sentiment_value = st.slider("ESG Sentiment Score", min_value=-1.0, max_value=1.0,
+                                            value=float(st.session_state['average_sentiment_esg']), disabled=True)
+            #st.write(sentiment_value)
 
-        # Risks and Threats Section
-        st.markdown('<div class="risks-section">', unsafe_allow_html=True)
-        st.subheader('Risks and Threats')
-        st.text_area('Sentiment of sentences about Risks and Threats')
-        st.markdown('</div>', unsafe_allow_html=True)
+        with col2:
+            # Goals and Objectives Section
+            st.markdown('<div class="goals-section">', unsafe_allow_html=True)
+            st.subheader('Goals and Objectives')
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        Risks_sentiment_df = sa.analyze_sentiment(Risks_sentences)
-        st.write(Risks_sentiment_df)
-        average_risks_sentiment = Risks_sentiment_df["Sentiment Score"].mean()
-        st.write("Average sentiment score", average_risks_sentiment)
-        # Slider
-        sentiment_value = st.slider("ESG Sentiment Score", min_value=-1.0, max_value=1.0,
-                                    value=float(average_risks_sentiment), disabled=True)
-        color = front.get_slider_color(sentiment_value)
-        color_html = f"<div style='width: 50px; height: 20px; background-color: {color};'></div>"
-        st.markdown(color_html, unsafe_allow_html=True)
+            Goals_sentiment_df = sa.analyze_sentiment(Goals_sentences)
+            Goals_sentiment_df_sel = Goals_sentiment_df[columns_to_display]
+            st.write(Goals_sentiment_df_sel)
+
+            st.session_state['average_goals_sentiment'] = Goals_sentiment_df["Sentiment Score"].mean()
+            #st.write("Average sentiment score", st.session_state['average_goals_sentiment'])
+            color_goals = front.get_slider_color(sentiment_value)
+            st.markdown(
+                f"Average sentiment score: <span style='color: {color_goals};'> {st.session_state['average_goals_sentiment']}</span>",
+                unsafe_allow_html=True)
+            #custom_slider_color(color_goals)
+            sentiment_value = st.slider("Goals and objectives Sentiment Score", min_value=-1.0, max_value=1.0,
+                                        value=float(st.session_state['average_goals_sentiment']), disabled=True)
+
+            # Risks and Threats Section
+            st.markdown('<div class="risks-section">', unsafe_allow_html=True)
+            st.subheader('Risks and Threats')
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            Risks_sentiment_df = sa.analyze_sentiment(Risk_factors)
+            Risks_sentiment_df_sel = Risks_sentiment_df[columns_to_display]
+            st.write(Risks_sentiment_df_sel)
+
+            st.session_state['average_risks_sentiment'] = Risks_sentiment_df["Sentiment Score"].mean()
+            #st.write("Average sentiment score", st.session_state['average_risks_sentiment'])
+            color_risk = front.get_slider_color(sentiment_value)
+            st.markdown(
+                f"Average sentiment score: <span style='color: {color_risk};'> {st.session_state['average_risks_sentiment']}</span>",
+                unsafe_allow_html=True)
+            #custom_slider_color(color_risk)
+            color_html = f"<div style='width: 50px; height: 20px; background-color: {color_risk};'></div>"
+            sentiment_value = st.slider("Goals and objectives Sentiment Score", min_value=-1.0, max_value=1.0,
+                                        value=float(st.session_state['average_risks_sentiment']), disabled=True)
 
 def show_table_extraction():
     

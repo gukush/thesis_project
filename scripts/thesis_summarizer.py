@@ -62,13 +62,8 @@ import ast
 
 def importFileFromStream(stream, page_num_down = None, page_num_up = None):
     doc = fitz.Document(stream=stream)
-    toc_ = toc.find_best_candidate(doc)
-    #add table of contents varible
-    st.session_state["toc"] = toc.get_toc_df(toc_)
-    #st.write(toc_)
     page_count = doc.page_count
     st.session_state['report_page_count'] = page_count
-    text = ""
     n = 0 # artificially created limit, to remove when we will want to process full pdf
     print(page_num_down, ":", page_num_up)
     if page_num_down is None:
@@ -87,7 +82,8 @@ def importFileFromStream(stream, page_num_down = None, page_num_up = None):
         sentences_page = sent_tokenize(text_)
         for sentence in sentences_page:
             sentences.append(sentence)
-            page_numbers.append(i+1)
+            #we could add 1 here
+            page_numbers.append(i)
 
     st.session_state['sentences_df'] = pd.DataFrame(data={'ID' : range(0, len(sentences)), 'Original Sentence' : sentences, 'Preprocessed Sentence' : sentences, 'PDF Page Number':page_numbers})
     st.session_state['report type'] = et.count_report_bigrams(text)
@@ -112,7 +108,7 @@ def RemoveStopWords(sentences_df, current_directory):
         lines = [line.strip() for line in lines]
         #print("custom_stopwords", lines)
         combined_stopword = combined_stopword + lines
-        print(combined_stopword)
+        #print(combined_stopword)
     # except FileNotFoundError:
         print(f"The file with custom stopword does not exist.")
         lines = []
@@ -350,24 +346,7 @@ def step_by_step(text):
     #print(nx_graph)
     #baisc cae without personalization
     if 'custom_keywords' in st.session_state:
-        # print("personalized summary")
-        # ai_nodes = [1,2,3,7, 22, 28]
-        # total_nodes = len(nx_graph.nodes())
-        # base_importance = 1 / total_nodes
-        # increase_factor = 5
-        # personalization_vector = {node: base_importance for node in nx_graph.nodes()}
-        # # Increase importance for AI nodes
-        # for ai_node in ai_nodes:
-        #     personalization_vector[ai_node] *= increase_factor
-        #     # Normalize the personalization vector
-        # total_importance = sum(personalization_vector.values())
-        # print(total_importance)
-        # print(personalization_vector)
-        # for node in personalization_vector:
-        #     personalization_vector[node] /= total_importance
-        # print(personalization_vector)
-        # total_importance = sum(personalization_vector.values())
-        # print(personalization_vector)
+
         personalization_vector = PersonalizeTextRank(sentences_df, stemmer)
         scores = nx.pagerank(nx_graph, max_iter=2000, alpha=0.9, tol=1.6e-6, personalization=personalization_vector)
     else:

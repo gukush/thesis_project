@@ -36,9 +36,12 @@ def generate_custom_styles():
 
     # Determine the color based on the sentiment value
 def get_slider_color(value):
-        if value < -0.5:
+    # if value is None:
+    #     return "gray"
+
+        if value <= -0.05:
             return "red"
-        elif value < 0.5:
+        elif value > -0.05 and value < 0.05:
             return "yellow"
         else:
             return "green"

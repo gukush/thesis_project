@@ -31,7 +31,7 @@ ENLARGE_CELL_X = 7
 ENLARGE_CELL_Y = 7
 
 keywords = ['consolidated','financial','statement','cash','flow']
-
+# Taken from: https://github.com/NielsRogge/Transformers-Tutorials/blob/master/Table%20Transformer/Using_Table_Transformer_for_table_detection_and_table_structure_recognition.ipynb
 def plot_results(pil_img, scores, labels, boxes,table_desc, filename, model,structure=True):
     plt.clf()
     plt.figure(figsize=(16,10))

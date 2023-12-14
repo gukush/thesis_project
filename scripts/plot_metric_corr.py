@@ -39,9 +39,21 @@ exclusion_list = ['Person','Fragment','Type']
 exclusion_list_2 = ['Person','Fragment','Type',
                     'ROUGE-1','ROUGE-2','ROUGE-L',
                     'ROUGE-2-pre','ROUGE-WE-2','ROUGE-WE-3']
+
 # Using list comprehension to select columns not in exclusion_list
 metric_columns = [col for col in df.columns if col not in exclusion_list]
 metric_columns_2 = [col for col in df.columns if col not in exclusion_list_2]
+
+
+if True:
+    for col in metric_columns:
+        df[col] = df[col].str.replace(',','.').astype(float).round(3)
+    format_dict = {col: "{:.3f}" for col in metric_columns}
+    batches = (['ROUGE-1','ROUGE-2','ROUGE-L','ROUGE-2-pre','ROUGE-1-pre','ROUGE-L-pre'],['ROUGE-WE-1','ROUGE-WE-2','ROUGE-WE-3','BLEU','BERTScore','Meteor','SUPERT','Chrf++'])
+    for batch in batches:
+        tmp = df[exclusion_list+batch]
+        print(tmp.to_latex(index=False,longtable=True,formatters=format_dict))
+
 if False:
     for our_type in ('Extractive','Abstractive'):
         corr_df = df[df['Type']==our_type].copy()
@@ -69,7 +81,7 @@ if False:
         fig.savefig(f"corr_heatmap_{our_type}.png")
 
 
-if True:
+if False:
     for our_type in ('Extractive','Abstractive'):
         corr_df = df[df['Type']==our_type].copy()
         corr_df = corr_df[metric_columns_2].copy()

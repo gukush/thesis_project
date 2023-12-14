@@ -51,6 +51,8 @@ def plot_results(pil_img, scores, labels, boxes,table_desc, filename, model,stru
             text = f'{model.config.id2label[label]}: {score:0.2f}'
             ax.text(xmin, ymin, text, fontsize=15,
                 bbox=dict(facecolor='yellow', alpha=0.5))
+            #ax.add_patch(plt.Rectangle((xmin-ENLARGE_X,ymin-ENLARGE_Y),xmax-xmin+2*ENLARGE_X,ymax-ymin+2*ENLARGE_Y,
+            #                           fill=False, color='green',linewidth=3))
     plt.axis('off')
     rand_bytes = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
     plt.savefig(f'../images/{filename}_{table_desc}.png')
